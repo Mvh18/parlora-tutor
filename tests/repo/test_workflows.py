@@ -67,12 +67,33 @@ def test_ci_ok_aggregates_every_ci_job(repo_root: Path) -> None:
     assert jobs["ci-ok"]["if"] == "always()"
 
 
-@pytest.mark.parametrize("job", ["server", "contract"])
-def test_server_jobs_run_their_recipes(repo_root: Path, job: str) -> None:
+@pytest.mark.parametrize(
+    ("job", "expected"),
+    [
+        ("server", "just test-server"),
+        ("contract", "export_openapi.py --check"),
+        ("web", "just test-web"),
+        ("web", "pnpm --filter @parlora/web build"),
+        ("e2e", "just e2e"),
+    ],
+)
+def test_ci_jobs_run_their_recipes(repo_root: Path, job: str, expected: str) -> None:
     jobs = load(repo_root / ".github" / "workflows" / "ci.yml")["jobs"]
     commands = " ".join(step.get("run", "") for step in jobs[job]["steps"])
-    expected = {"server": "just test-server", "contract": "export_openapi.py --check"}
-    assert expected[job] in commands
+    assert expected in commands
+
+
+def test_contract_job_fails_on_a_stale_web_client(repo_root: Path) -> None:
+    jobs = load(repo_root / ".github" / "workflows" / "ci.yml")["jobs"]
+    commands = " ".join(step.get("run", "") for step in jobs["contract"]["steps"])
+    assert "just gen-client" in commands
+    assert "git diff --exit-code" in commands
+
+
+def test_codeql_analyses_typescript(repo_root: Path) -> None:
+    workflow = load(repo_root / ".github" / "workflows" / "codeql.yml")
+    languages = workflow["jobs"]["analyze"]["strategy"]["matrix"]["language"]
+    assert "javascript-typescript" in languages
 
 
 def test_docker_job_checks_the_runtime_image(repo_root: Path) -> None:

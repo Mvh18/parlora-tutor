@@ -85,9 +85,75 @@ jobs:
         with:
           version: "0.13.0"
           enable-cache: true
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
       - run: uv sync --locked
+      - run: pnpm install --frozen-lockfile
       # Fails with a diff when contracts/openapi.json drifts from the code
       - run: uv run python scripts/export_openapi.py --check
+      # Fails when the web client was not regenerated after a contract change
+      - run: |
+          uv run just gen-client
+          git diff --exit-code -- apps/web/src/lib/api/schema.d.ts
+
+  web:
+    name: web
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: "0.13.0"
+          enable-cache: true
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: uv sync --locked
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @parlora/web lint
+      - run: pnpm --filter @parlora/web typecheck
+      # Vitest with the 85 % coverage gate on every metric
+      - run: uv run just test-web
+      - run: pnpm --filter @parlora/web build
+
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: "0.13.0"
+          enable-cache: true
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: uv sync --locked
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @parlora/web exec playwright install --with-deps chromium
+      - name: Start the stack without a GPU
+        run: docker compose -f compose.yaml -f compose.nogpu.yaml up --detach --build --wait
+      # Playwright builds and previews the dev client, then runs the smoke test with axe
+      - run: uv run just e2e
+      - name: Show the logs
+        if: failure()
+        run: docker compose logs
+      - name: Stop the stack
+        if: always()
+        run: docker compose --profile '*' down --volumes
 
   repo:
     name: repo invariants
@@ -160,7 +226,7 @@ jobs:
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [lint, core, server, contract, repo, docker, devcontainer, security]
+    needs: [lint, core, server, contract, web, e2e, repo, docker, devcontainer, security]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
