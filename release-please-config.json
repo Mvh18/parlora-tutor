@@ -34,7 +34,8 @@
           "path": "uv.lock",
           "jsonpath": "$.package[?(@.name.value == 'parlora-server')].version"
         },
-        { "type": "json", "path": "contracts/openapi.json", "jsonpath": "$.info.version" }
+        { "type": "json", "path": "contracts/openapi.json", "jsonpath": "$.info.version" },
+        { "type": "json", "path": "apps/web/package.json", "jsonpath": "$.version" }
       ]
     }
   }

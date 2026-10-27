@@ -13,11 +13,12 @@ default:
 setup:
     uv sync --locked
     pnpm install --frozen-lockfile
+    pnpm --filter @parlora/web exec playwright install chromium
     uv run pre-commit install --install-hooks
 
 # Start the stack with the server reloading on code changes; `just dev nogpu` without an NVIDIA GPU
 dev mode="gpu":
-    @echo 'dev: server on http://127.0.0.1:8700 (reloads on change); run the web app with `pnpm dev` in a second terminal.'
+    @echo 'dev: server on http://127.0.0.1:8700 (reloads on change); run the dev client with `pnpm --dir apps/web dev` in a second terminal.'
     docker compose -f compose.yaml -f compose.dev.yaml {{ if mode == "nogpu" { "-f compose.nogpu.yaml" } else if mode == "gpu" { "" } else { error("mode must be gpu or nogpu") } }} up --build
 
 # Start the Compose stack (PostgreSQL + server) and wait until healthy; `just up nogpu` without an NVIDIA GPU
@@ -40,10 +41,12 @@ lint:
     uv run ruff format --check .
     uv run lint-imports
     pnpm exec prettier --check .
+    pnpm --filter @parlora/web lint
 
-# Type-check Python (mypy --strict)
+# Type-check Python (mypy --strict) and TypeScript (tsc)
 typecheck:
     uv run mypy
+    pnpm --filter @parlora/web typecheck
 
 # Run every test suite
 test: test-repo test-core test-server test-web
@@ -62,13 +65,13 @@ test-server:
     uv run pytest apps/server/tests -m "not gpu" --cov=parlora_server --cov-report=term-missing --cov-report=json:build/coverage-server.json
     uv run python scripts/coverage_gate.py build/coverage-server.json --lines 85 --branches 85
 
-# Run the web unit tests with its coverage gate
+# Run the web unit tests with its coverage gate (85 % on every metric)
 test-web:
-    @echo 'test-web: nothing to run yet - apps/web arrives with the web shell work.'
+    pnpm --filter @parlora/web test:coverage
 
-# Run the Playwright smoke tests
+# Run the Playwright smoke tests against the production build (needs `just up` first)
 e2e:
-    @echo 'e2e: nothing to run yet - the smoke tests arrive with the web shell work.'
+    pnpm --filter @parlora/web e2e
 
 # Export the OpenAPI contract to contracts/openapi.json
 openapi:
@@ -76,7 +79,7 @@ openapi:
 
 # Generate the TypeScript API client from the OpenAPI contract
 gen-client:
-    @echo 'gen-client: not available yet - the client arrives with the web shell work.'
+    pnpm --filter @parlora/web gen-client
 
 # Scan for secrets, audit workflows and check Python dependencies (ADR 0005)
 security:

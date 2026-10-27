@@ -69,14 +69,11 @@ coverage.xml
 htmlcov/
 
 # ─────────────────────────────────────────────────────────────
-# Node / Next.js
+# Node / Vite
 # ─────────────────────────────────────────────────────────────
 node_modules/
-.next/
-out/
 .turbo/
 *.tsbuildinfo
-next-env.d.ts
 coverage/
 playwright-report/
 test-results/
