@@ -9,7 +9,7 @@
 # The slim uv image is enough: CUDA user-space libraries will arrive as pip
 # wheels with the voice pipeline, cached in the dependency layer below.
 
-FROM ghcr.io/astral-sh/uv:0.13.3-python3.12-trixie-slim@sha256:717e09370920d9f72cffdb55584c237bbb97ae0a50f9f483b4f736af17c92018 AS base
+FROM ghcr.io/astral-sh/uv:0.13.6-python3.12-trixie-slim@sha256:bf889bda77474aa50c351caf1538b855ef2b7a30add45f26ca50dcb6ade06402 AS base
 
 ENV PYTHONUNBUFFERED=1 \
     UV_LINK_MODE=copy \
