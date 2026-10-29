@@ -18,7 +18,7 @@ security problem.
 
 Report it privately through GitHub's **private vulnerability reporting**:
 open the repository's **Security** tab and choose **Report a vulnerability**
-(direct link: <https://github.com/Mvh18/parlora/security/advisories/new>).
+(direct link: <https://github.com/Mvh18/parlora-tutor/security/advisories/new>).
 
 Include, where you can:
 

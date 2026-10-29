@@ -51,7 +51,7 @@ typecheck:
 # Run every test suite
 test: test-repo test-core test-server test-web
 
-# Run the repository invariant tests
+# Run the repository invariant tests, including the documentation and its relative links
 test-repo:
     uv run pytest tests/repo
 

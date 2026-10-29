@@ -6,7 +6,7 @@ the commands with the [GitHub CLI](https://cli.github.com/) authenticated as a
 repository admin (`gh auth login`). They are idempotent unless noted.
 
 ```sh
-REPO=Mvh18/parlora
+REPO=Mvh18/parlora-tutor
 ```
 
 ## Security and analysis
