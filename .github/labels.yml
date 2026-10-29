@@ -30,7 +30,7 @@
   description: FastAPI server and voice pipeline
 - name: area/web
   color: "BFD4F2"
-  description: Next.js web app
+  description: Minimal dev client (apps/web)
 - name: area/infra
   color: "BFD4F2"
   description: Docker and local runtime

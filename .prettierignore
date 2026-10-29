@@ -3,6 +3,7 @@ uv.lock
 pnpm-lock.yaml
 CHANGELOG.md
 contracts/openapi.json
+apps/web/src/lib/api/schema.d.ts
 
 # Legal text must stay verbatim
 LICENSE

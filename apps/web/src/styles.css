@@ -1,0 +1,73 @@
+:root {
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #555555;
+  --healthy: #116329;
+  --degraded: #8a4b00;
+  --unreachable: #b3261e;
+  --checking: #555555;
+  --surface: #f3f3f3;
+
+  color: var(--fg);
+  background: var(--bg);
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121212;
+    --fg: #ececec;
+    --muted: #b0b0b0;
+    --healthy: #6fdc8c;
+    --degraded: #f1b75a;
+    --unreachable: #ff8a80;
+    --checking: #b0b0b0;
+    --surface: #222222;
+  }
+}
+
+body {
+  margin: 0;
+}
+
+.page {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 3rem 1rem;
+}
+
+.page__meta {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 999px;
+  background: var(--surface);
+  font-weight: 600;
+}
+
+.status-badge__dot {
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.status-badge[data-status="checking"] {
+  color: var(--checking);
+}
+.status-badge[data-status="healthy"] {
+  color: var(--healthy);
+}
+.status-badge[data-status="degraded"] {
+  color: var(--degraded);
+}
+.status-badge[data-status="unreachable"] {
+  color: var(--unreachable);
+}
