@@ -1,6 +1,6 @@
 {
   "name": "@parlora/web",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Minimal dev client for Parlora Tutor (the product UI lives in Parlora Hub).",
   "license": "SEE LICENSE IN LICENSE",
