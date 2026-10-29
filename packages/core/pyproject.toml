@@ -1,6 +1,6 @@
 [project]
 name = "parlora-core"
-version = "0.3.0"
+version = "0.4.0"
 description = "Framework-free domain core for Parlora: languages, CEFR levels, learners and sessions."
 readme = "README.md"
 requires-python = "==3.12.*"

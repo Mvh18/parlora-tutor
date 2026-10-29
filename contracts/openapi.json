@@ -3,7 +3,7 @@
   "info": {
     "title": "Parlora API",
     "description": "Versioned HTTP API of Parlora, a local-first voice tutor. Every error is an RFC 9457 problem document (`application/problem+json`).",
-    "version": "0.3.0"
+    "version": "0.4.0"
   },
   "paths": {
     "/api/v1/health/live": {

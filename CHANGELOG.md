@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.0](https://github.com/Mvh18/parlora-tutor/compare/v0.3.0...v0.4.0) (2026-10-29)
+
+
+### Features
+
+* **web:** add generated api client ([e127668](https://github.com/Mvh18/parlora-tutor/commit/e1276689626eb51de1457220c74d390b6255efa2)), closes [#37](https://github.com/Mvh18/parlora-tutor/issues/37)
+* **web:** add minimal dev client with server status ([2199fbf](https://github.com/Mvh18/parlora-tutor/commit/2199fbfed5747b07ec873239db3750dadf24079f))
+* **web:** scaffold minimal dev client ([ad1d86c](https://github.com/Mvh18/parlora-tutor/commit/ad1d86c0638112da8a2f107a1c377e7f3bcae96e)), closes [#37](https://github.com/Mvh18/parlora-tutor/issues/37)
+* **web:** show server status ([8ce5e29](https://github.com/Mvh18/parlora-tutor/commit/8ce5e29c611bae5fcff0c75e31880abb0d3b8dc6)), closes [#37](https://github.com/Mvh18/parlora-tutor/issues/37)
+
 ## [0.3.0](https://github.com/Mvh18/parlora-tutor/compare/v0.2.0...v0.3.0) (2026-10-24)
 
 

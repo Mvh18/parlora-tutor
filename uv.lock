@@ -693,12 +693,12 @@ wheels = [
 
 [[package]]
 name = "parlora-core"
-version = "0.3.0"
+version = "0.4.0"
 source = { editable = "packages/core" }
 
 [[package]]
 name = "parlora-server"
-version = "0.3.0"
+version = "0.4.0"
 source = { editable = "apps/server" }
 dependencies = [
     { name = "alembic" },
@@ -723,7 +723,7 @@ requires-dist = [
 
 [[package]]
 name = "parlora-workspace"
-version = "0.3.0"
+version = "0.4.0"
 source = { virtual = "." }
 
 [package.dev-dependencies]
