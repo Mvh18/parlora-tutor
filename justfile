@@ -49,11 +49,16 @@ typecheck:
     pnpm --filter @parlora/web typecheck
 
 # Run every test suite
-test: test-repo test-core test-server test-web
+test: test-repo test-bench test-core test-server test-web
 
 # Run the repository invariant tests, including the documentation and its relative links
 test-repo:
     uv run pytest tests/repo
+
+# Run the benchmark logic tests (no GPU, no Ollama) with its coverage gate (85 % lines and branches)
+test-bench:
+    uv run pytest tests/bench -m "not gpu" --cov=scripts.bench.common --cov-report=term-missing --cov-report=json:build/coverage-bench.json
+    uv run python scripts/coverage_gate.py build/coverage-bench.json --lines 85 --branches 85
 
 # Run the domain core tests with its coverage gate (95 % lines and branches)
 test-core:
