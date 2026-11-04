@@ -70,7 +70,7 @@ services:
   # Optional containerised Ollama: `docker compose --profile ollama up`, then set
   # PARLORA_LLM__BASE_URL=http://ollama:11434/v1. Stop a native Ollama first: both use 11434.
   ollama:
-    image: ollama/ollama:0.40.10@sha256:4c5b27871a3239a717048f9b93057680a51b60c8119a7016aebb57f938e25e35
+    image: ollama/ollama:0.40.12@sha256:20d1bbfbabe1c97ba4b16301f08a20d8484bcf77047742a3cb71c613d8e12d0b
     profiles: [ollama]
     ports:
       - "127.0.0.1:11434:11434"
