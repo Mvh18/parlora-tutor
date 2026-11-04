@@ -169,6 +169,7 @@ jobs:
           enable-cache: true
       - run: uv sync --locked
       - run: uv run just test-repo
+      - run: uv run just test-bench
 
   docker:
     name: docker

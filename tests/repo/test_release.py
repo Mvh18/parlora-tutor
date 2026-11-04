@@ -100,6 +100,18 @@ def test_pr_title_check_allows_exactly_the_commit_types(repo_root: Path) -> None
     assert set(step["with"]["types"].split()) == COMMIT_TYPES
 
 
+def test_dependabot_titles_follow_the_pr_title_check(repo_root: Path) -> None:
+    # An explicit lowercase prefix makes Dependabot write "build(deps): bump x";
+    # without one it copies the history's style and writes "Bump", which the
+    # lowercase subject rule of the PR title check rejects.
+    config = load_yaml(repo_root / ".github" / "dependabot.yml")
+    expected = {"prefix": "build", "prefix-development": "build", "include": "scope"}
+    offenders = [
+        u["package-ecosystem"] for u in config["updates"] if u.get("commit-message") != expected
+    ]
+    assert not offenders, f"updates without the build(deps) commit message: {offenders}"
+
+
 # ── Versioning ──────────────────────────────────────────────────────────────
 
 

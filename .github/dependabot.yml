@@ -10,6 +10,10 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    commit-message:
+      prefix: build
+      prefix-development: build
+      include: scope
     groups:
       python:
         update-types: [minor, patch]
@@ -20,6 +24,10 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    commit-message:
+      prefix: build
+      prefix-development: build
+      include: scope
     groups:
       javascript:
         update-types: [minor, patch]
@@ -32,6 +40,10 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    commit-message:
+      prefix: build
+      prefix-development: build
+      include: scope
     # The runtime lines are pinned by .python-version (3.12) and .nvmrc (24 LTS)
     # and move only by an explicit decision; patch updates still arrive. Node
     # 25+ also dropped the bundled corepack the Dev Container uses for pnpm.
@@ -47,6 +59,10 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    commit-message:
+      prefix: build
+      prefix-development: build
+      include: scope
 
   - package-ecosystem: github-actions
     directory: /
@@ -54,6 +70,10 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    commit-message:
+      prefix: build
+      prefix-development: build
+      include: scope
     groups:
       actions:
         patterns: ["*"]
