@@ -19,6 +19,8 @@ REQUIRED_RECIPES = [
     "test-core",
     "test-server",
     "test-web",
+    "test-repo",
+    "test-bench",
     "e2e",
     "openapi",
     "gen-client",
