@@ -44,6 +44,7 @@ used: `uv run just <recipe>`.
 | `just test-server` | Server tests (integration tests start PostgreSQL in Docker), 85 %   |
 | `just test-web`    | Web unit tests, 85 % on every metric                                |
 | `just test-repo`   | Repository invariants, documentation and relative links             |
+| `just test-bench`  | Benchmark logic (no GPU, no Ollama), coverage gate 85 %             |
 | `just up` / `down` | Start / stop the local stack; `just up nogpu` without an NVIDIA GPU |
 | `just e2e`         | Playwright smoke against the running stack                          |
 | `just openapi`     | Export `contracts/openapi.json`                                     |
