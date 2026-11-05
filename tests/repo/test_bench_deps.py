@@ -75,6 +75,55 @@ def test_lockfile_has_no_gpl_g2p_packages(repo_root: Path) -> None:
     assert not names & GPL_G2P, f"GPL G2P packages in uv.lock: {sorted(names & GPL_G2P)}"
 
 
+def dockerfile_stages(repo_root: Path) -> dict[str, tuple[set[str], str]]:
+    """Stage name -> (stages it builds from or copies from, its instructions)."""
+    text = (repo_root / "docker" / "server.Dockerfile").read_text(encoding="utf-8")
+    # Comments may name what a later stage installs; only instructions count.
+    text = re.sub(r"^\s*#.*\n", "", text, flags=re.M)
+    stages: dict[str, tuple[set[str], str]] = {}
+    for block in re.split(r"^(?=FROM )", text, flags=re.M)[1:]:
+        header = re.match(r"FROM (\S+) AS (\S+)", block)
+        assert header, block.splitlines()[0]
+        parents = {header.group(1), *re.findall(r"--from=(\S+)", block)}
+        stages[header.group(2)] = (parents, block)
+    return stages
+
+
+def ancestry(stages: dict[str, tuple[set[str], str]], target: str) -> set[str]:
+    seen, todo = set(), [target]
+    while todo:
+        name = todo.pop()
+        if name in stages and name not in seen:
+            seen.add(name)
+            todo.extend(stages[name][0])
+    return seen
+
+
+BENCH_ONLY = {
+    "bench group": r"--group bench",
+    "espeak-ng": r"\bespeak-ng\b",
+    "CUDA library path": r"LD_LIBRARY_PATH",
+}
+
+
+@pytest.mark.parametrize("what", sorted(BENCH_ONLY))
+def test_bench_only_content_stays_out_of_dev_and_runtime(repo_root: Path, what: str) -> None:
+    stages = dockerfile_stages(repo_root)
+    holders = {name for name, (_, body) in stages.items() if re.search(BENCH_ONLY[what], body)}
+    assert holders, f"no stage installs the {what}"
+    assert holders <= ancestry(stages, "bench"), f"{what} outside the bench target: {holders}"
+    for target in ("dev", "runtime"):
+        leaked = holders & ancestry(stages, target)
+        assert not leaked, f"{what} reaches the {target} target through {leaked}"
+
+
+def test_bench_target_runs_as_the_unprivileged_user(repo_root: Path) -> None:
+    body = dockerfile_stages(repo_root)["bench"][1]
+    users = re.findall(r"^USER (\S+)$", body, re.M)
+    assert users
+    assert users[-1] == "parlora"
+
+
 def test_misaki_is_installed_without_extras(repo_root: Path) -> None:
     group = pyproject(repo_root)["dependency-groups"]["bench"]
     misaki = next(r for r in group if requirement_name(r) == "misaki")
