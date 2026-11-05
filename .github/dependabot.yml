@@ -15,6 +15,21 @@ updates:
       prefix-development: build
       include: scope
     groups:
+      # The optional bench group (scripts/bench) moves on its own: its speech
+      # and CUDA wheels are large and are checked by running the benchmarks.
+      bench:
+        patterns:
+          - faster-whisper
+          - ctranslate2
+          - nvidia-*
+          - onnxruntime
+          - misaki
+          - spacy
+          - en-core-web-sm
+          - num2words
+          - soundfile
+          - numpy
+          - huggingface-hub
       python:
         update-types: [minor, patch]
 

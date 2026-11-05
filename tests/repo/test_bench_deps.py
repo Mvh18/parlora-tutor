@@ -124,6 +124,19 @@ def test_bench_target_runs_as_the_unprivileged_user(repo_root: Path) -> None:
     assert users[-1] == "parlora"
 
 
+def test_dependabot_groups_bench_updates_apart(repo_root: Path) -> None:
+    import yaml
+
+    config = yaml.safe_load((repo_root / ".github" / "dependabot.yml").read_text("utf-8"))
+    uv = next(u for u in config["updates"] if u["package-ecosystem"] == "uv")
+    groups = list(uv["groups"])
+    # Dependabot puts an update in the first group that matches it.
+    assert groups.index("bench") < groups.index("python")
+    patterns = uv["groups"]["bench"]["patterns"]
+    for name in BENCH_PACKAGES:
+        assert any(re.fullmatch(p.replace("*", ".*"), name) for p in patterns), name
+
+
 def test_misaki_is_installed_without_extras(repo_root: Path) -> None:
     group = pyproject(repo_root)["dependency-groups"]["bench"]
     misaki = next(r for r in group if requirement_name(r) == "misaki")
