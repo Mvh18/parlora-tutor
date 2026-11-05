@@ -27,10 +27,21 @@ allow-licenses:
   - Unlicense
   - Zlib
 
-# Reviewed LGPL exceptions (ADR 0004); keep in sync with the Python gate.
+# Reviewed exceptions; keep in sync with scripts/audit_python_deps.py.
 allow-dependencies-licenses:
+  # LGPL, used unmodified through normal imports (ADR 0004).
   - pkg:pypi/soxr
   - pkg:pypi/num2words
+  # NVIDIA's CUDA wheels of the optional bench group: proprietary (GitHub
+  # reports NOASSERTION), installed locally and never redistributed (NOTICE).
+  - pkg:pypi/nvidia-cublas-cu12
+  - pkg:pypi/nvidia-cuda-nvrtc-cu12
+  - pkg:pypi/nvidia-cudnn-cu12
+  # Permissive, but reported as compound expressions outside the list above:
+  # protobuf is BSD-3-Clause plus Google's BSD-style protobuf notice, and regex
+  # is Apache-2.0 plus CNRI-Python code from CPython's sre engine.
+  - pkg:pypi/protobuf
+  - pkg:pypi/regex
 
 # GPL grapheme-to-phoneme packages that must never enter the process.
 deny-packages:
