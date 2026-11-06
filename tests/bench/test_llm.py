@@ -208,3 +208,15 @@ def test_runs_must_be_positive(tmp_path: Path) -> None:
 def test_only_http_endpoints_are_accepted() -> None:
     with pytest.raises(ValueError, match="http"):
         llm.Ollama("file:///etc/passwd")
+
+
+def test_other_loaded_models_are_unloaded_before_the_baseline(
+    ollama: tuple[str, type[FakeOllama]], tmp_path: Path
+) -> None:
+    endpoint, handler = ollama
+    handler.loaded.add("gemma3:4b")
+
+    run(endpoint, tmp_path, "qwen3:4b", runs=1)
+
+    unloads = [b["model"] for b in handler.bodies if b.get("keep_alive") == 0]
+    assert unloads == ["gemma3:4b", "qwen3:4b"]

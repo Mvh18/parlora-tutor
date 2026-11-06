@@ -141,13 +141,19 @@ def unload(client: Ollama, model: str, wait_s: float = 30) -> None:
         time.sleep(0.5)
 
 
+def loaded_models(client: Ollama) -> set[str]:
+    return {str(entry["name"]) for entry in client.get("/api/ps").get("models", [])}
+
+
 def benchmark_model(
     client: Ollama, model: str, runs: int, sampler: VramSampler, ollama_version: str
 ) -> dict[str, Any]:
     software = model_software(client.get("/api/tags"), model)
     caps = capabilities(client, model)
     thinking = "thinking" in caps
-    unload(client, model)
+    # Every loaded model, not only this one: the baseline must be an empty GPU.
+    for loaded in sorted(loaded_models(client) | {model}):
+        unload(client, loaded)
     baseline = sampler.used_mb()
     with sampler:
         body = chat_body(model, PROMPTS[0], WARM_KEEP_ALIVE, thinking)
