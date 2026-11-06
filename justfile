@@ -95,6 +95,11 @@ bench-setup:
 bench-llm *models:
     uv run --group bench python -m scripts.bench.llm {{ models }}
 
+# Regenerate the synthetic speech fixtures with Kokoro in the bench image (espeak-ng for OOV words)
+bench-fixtures:
+    docker build --file docker/server.Dockerfile --target bench --tag parlora-bench .
+    docker run --rm --volume "{{ justfile_directory() }}:/app" --volume parlora-bench-cache:/cache parlora-bench python -m scripts.bench.fixtures
+
 # Scan for secrets, audit workflows and check Python dependencies (ADR 0005)
 security:
     uv run pre-commit run gitleaks --all-files
