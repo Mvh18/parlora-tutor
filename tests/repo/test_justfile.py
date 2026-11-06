@@ -24,6 +24,8 @@ REQUIRED_RECIPES = [
     "bench-setup",
     "bench-llm",
     "bench-fixtures",
+    "bench-stt",
+    "bench-stt-container",
     "e2e",
     "openapi",
     "gen-client",
