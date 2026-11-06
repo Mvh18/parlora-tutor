@@ -253,7 +253,9 @@ class Kokoro:
         self.vocab: dict[str, int] = json.loads(paths["config.json"].read_text(encoding="utf-8"))[
             "vocab"
         ]
-        self.styles = np.load(paths["voices-v1.0.bin"])[voice]
+        self.voices = np.load(paths["voices-v1.0.bin"])
+        if voice not in self.voices.files:
+            raise ValueError(f"unknown Kokoro voice {voice!r}")
         self.session = onnxruntime.InferenceSession(
             str(paths["kokoro-v1.0.onnx"]), providers=["CPUExecutionProvider"]
         )
@@ -271,7 +273,7 @@ class Kokoro:
             )
         return phonemes, oov
 
-    def synthesize(self, text: str) -> Speech:
+    def synthesize(self, text: str, voice: str | None = None) -> Speech:
         np = self._np
         phonemes, oov = self.phonemize(text)
         ids = [self.vocab[p] for p in phonemes if p in self.vocab]
@@ -279,7 +281,7 @@ class Kokoro:
             raise ValueError(f"{len(ids)} phoneme tokens, Kokoro takes at most {MAX_TOKENS}")
         inputs = {
             "tokens": np.array([[0, *ids, 0]], dtype=np.int64),
-            "style": np.asarray(self.styles[len(ids)], dtype=np.float32),
+            "style": np.asarray(self.voices[voice or self.voice][len(ids)], dtype=np.float32),
             "speed": np.array([self.speed], dtype=np.float32),
         }
         audio = self.session.run(None, inputs)[0].astype(np.float32).reshape(-1)

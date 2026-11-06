@@ -149,3 +149,14 @@ def test_generator_is_required_once_generated(fixtures: Path) -> None:
     assert manifest_problems(data, fixtures) == [
         "generator must be an object once the audio is generated"
     ]
+
+
+def test_committed_fixtures_are_valid() -> None:
+    import json
+
+    from scripts.bench.fixtures import FIXTURES
+
+    data = json.loads((FIXTURES / "manifest.json").read_text(encoding="utf-8"))
+
+    assert manifest_problems(data, FIXTURES) == []
+    assert data["generator"]["oov_mode"] == "cli", "fixtures must be generated in the bench image"

@@ -23,6 +23,7 @@ REQUIRED_RECIPES = [
     "test-bench",
     "bench-setup",
     "bench-llm",
+    "bench-fixtures",
     "e2e",
     "openapi",
     "gen-client",
