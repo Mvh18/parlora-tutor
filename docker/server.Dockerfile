@@ -4,6 +4,7 @@
 # Targets:
 #   dev      - editable install; compose.dev.yaml bind-mounts the sources and
 #              uvicorn reloads on change.
+#   bench    - local benchmark image (scripts/bench); never published.
 #   runtime  - the default: a frozen, non-editable install of the server only.
 #
 # The slim uv image is enough: CUDA user-space libraries will arrive as pip
@@ -45,6 +46,24 @@ EXPOSE 8000
 # Polling reload: file events do not cross Docker Desktop bind mounts reliably.
 CMD ["uvicorn", "--factory", "parlora_server.main:create_app", "--host", "0.0.0.0", "--port", "8000", \
      "--reload", "--reload-dir", "/app/apps/server/src", "--reload-dir", "/app/packages/core/src"]
+
+# Component benchmarks (scripts/bench), local only: never published. Adds the
+# optional bench group, the CUDA wheel libraries ctranslate2 needs on its path
+# (ADR 0002) and the espeak-ng executable for OOV words, run as a separate
+# process (GPL-3.0, ADR 0004). The repository is mounted at /app at run time.
+FROM deps AS bench
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends espeak-ng \
+    && rm -rf /var/lib/apt/lists/*
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    --mount=type=bind,source=packages/core/pyproject.toml,target=packages/core/pyproject.toml \
+    --mount=type=bind,source=apps/server/pyproject.toml,target=apps/server/pyproject.toml \
+    uv sync --frozen --no-dev --group bench --inexact --no-install-workspace
+ENV LD_LIBRARY_PATH=/opt/venv/lib/python3.12/site-packages/nvidia/cublas/lib:/opt/venv/lib/python3.12/site-packages/nvidia/cudnn/lib
+USER parlora
+CMD ["python", "-c", "import faster_whisper, onnxruntime, misaki, spacy; print('bench image ready')"]
 
 FROM deps AS build
 ENV UV_COMPILE_BYTECODE=1

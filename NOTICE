@@ -6,7 +6,10 @@ This file lists the third-party models, runtimes and components that Parlora
 Tutor depends on, adapts or recommends. Each one keeps its own licence or
 terms, which apply to that component and are not changed by Parlora Tutor's
 licence. Components marked "planned" arrive with the voice pipeline (Phase 1)
-and are not yet installed by this repository.
+and are not yet installed by this repository. Components marked "bench" are
+installed only by the optional `bench` dependency group and the local `bench`
+image used by the component benchmarks (scripts/bench); `just setup` and the
+server's runtime image do not install them.
 
 Model weights are never stored in this repository; they are downloaded by the
 user from their original source and are subject to that source's terms.
@@ -18,8 +21,19 @@ Speech recognition
 Whisper (OpenAI) — model weights and reference code — MIT License. Planned.
   https://github.com/openai/whisper
 
-faster-whisper (SYSTRAN) and CTranslate2 (OpenNMT) — MIT License. Planned.
+faster-whisper (SYSTRAN) and CTranslate2 (OpenNMT) — MIT License. Bench;
+  planned for the voice pipeline.
   https://github.com/SYSTRAN/faster-whisper
+
+NVIDIA CUDA libraries — nvidia-cublas-cu12, nvidia-cudnn-cu12 and
+  nvidia-cuda-nvrtc-cu12 — NVIDIA proprietary licences (NVIDIA Software License
+  Agreement and the CUDA Toolkit End User License Agreement). Bench. The CUDA
+  user-space libraries that CTranslate2 loads on the GPU, installed as pip
+  wheels from PyPI on the user's machine. They are not redistributed: the
+  repository does not contain them and Parlora Tutor does not publish container
+  images. The dependency licence check allows them as a reviewed exception
+  (docs/adr/0002-server-gpu-runtime-in-docker.md).
+  https://docs.nvidia.com/cuda/eula/
 
 
 Speech synthesis
@@ -28,15 +42,16 @@ Speech synthesis
 Kokoro-82M (hexgrad) — model weights — Apache License 2.0. Planned.
   https://huggingface.co/hexgrad/Kokoro-82M
 
-misaki (hexgrad) — grapheme-to-phoneme library — MIT License. Planned.
-  Used without extras. Parlora Tutor also adapts misaki's table that maps
-  espeak-ng IPA phonemes to Kokoro phonemes; that code is used under the MIT
-  License with attribution.
+misaki (hexgrad) — grapheme-to-phoneme library — Apache License 2.0. Bench;
+  planned for the voice pipeline. Used without extras. Parlora Tutor also
+  adapts misaki's table that maps espeak-ng IPA phonemes to Kokoro phonemes;
+  that code is used under the Apache License 2.0 with attribution.
   https://github.com/hexgrad/misaki
 
-kokoro-onnx (thewh1teagle) — MIT License. Planned.
-  Parlora Tutor does not install this package (it pulls in GPL code); it
-  adapts parts of its ONNX runner under the MIT License, with attribution.
+kokoro-onnx (thewh1teagle) — MIT License. Bench; planned for the voice
+  pipeline. Parlora Tutor does not install this package (it pulls in GPL
+  code); it adapts parts of its ONNX runner under the MIT License, with
+  attribution.
   https://github.com/thewh1teagle/kokoro-onnx
 
 espeak-ng — GNU General Public License v3.0 or later (GPL-3.0-or-later).
@@ -44,14 +59,20 @@ espeak-ng — GNU General Public License v3.0 or later (GPL-3.0-or-later).
   pronunciation dictionary (out-of-vocabulary words): Parlora Tutor starts the
   `espeak-ng` program as a separate process, passes it one word and reads back
   the phonemes. No espeak-ng code is linked, imported or contained in this
-  repository. The server image installs the Debian `espeak-ng` package when the
-  user builds it locally; Parlora Tutor does not publish container images. Any
+  repository. The server image's local `bench` target installs the Debian
+  `espeak-ng` package when the user builds it; the runtime image does not, and
+  Parlora Tutor does not publish container images. Any
   distributed image that contains espeak-ng must meet the GPL-3.0 terms for that
   component. See docs/adr/0004-kokoro-g2p-and-gpl-boundary.md.
   https://github.com/espeak-ng/espeak-ng
 
-spaCy and the en_core_web_sm model (Explosion) — MIT License. Planned.
+spaCy and the en_core_web_sm model (Explosion) — MIT License. Bench; planned
+  for the voice pipeline.
   https://github.com/explosion/spaCy
+
+onnxruntime (Microsoft) — MIT License. Bench; planned for the voice pipeline.
+  Runs the Kokoro ONNX model on the CPU.
+  https://github.com/microsoft/onnxruntime
 
 
 Voice pipeline
@@ -92,7 +113,7 @@ soxr (python-soxr) — GNU Lesser General Public License v2.1 or later
   https://github.com/dofuuz/python-soxr
 
 num2words — GNU Lesser General Public License v2.1 (LGPL-2.1). Pulled in by
-  misaki's English G2P. Planned.
+  misaki's English G2P. Bench; planned for the voice pipeline.
   https://github.com/savoirfairelinux/num2words
 
 

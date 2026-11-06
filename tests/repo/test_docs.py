@@ -150,6 +150,21 @@ def test_notice_names_the_gpl_component(repo_root: Path) -> None:
     assert "GPL-3.0" in text
 
 
+def test_notice_names_the_proprietary_cuda_libraries(repo_root: Path) -> None:
+    text = " ".join(read(repo_root, "NOTICE").split())
+    for name in ["nvidia-cublas-cu12", "nvidia-cudnn-cu12", "nvidia-cuda-nvrtc-cu12"]:
+        assert name in text, f"NOTICE does not list {name}"
+    assert "not redistributed" in text
+
+
+@pytest.mark.parametrize(
+    "component",
+    ["faster-whisper", "CTranslate2", "onnxruntime", "spaCy", "en_core_web_sm", "kokoro-onnx"],
+)
+def test_notice_lists_the_benchmark_dependencies(repo_root: Path, component: str) -> None:
+    assert component in read(repo_root, "NOTICE")
+
+
 def test_adrs_are_numbered_without_gaps(repo_root: Path) -> None:
     numbers = sorted(
         int(p.name[:4]) for p in (repo_root / "docs" / "adr").glob("[0-9][0-9][0-9][0-9]-*.md")

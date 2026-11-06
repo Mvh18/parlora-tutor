@@ -2,26 +2,63 @@
 
 1. Export the locked dependency set and audit it with pip-audit.
 2. Check the licences of the installed environment with pip-licenses: GPL and
-   AGPL of any version are denied (ADR 0004), and so is a missing licence.
+   AGPL of any version are denied (ADR 0004), and so are a missing licence and a
+   proprietary one. Reviewed exceptions are listed below by package name, each
+   with its justification.
 
 Run after `uv sync --locked --all-packages --all-groups` so the installed
-environment matches the lockfile. Exits non-zero when either check fails.
+environment matches the lockfile, including the optional `bench` group. Exits
+non-zero when either check fails.
 """
 
+import fnmatch
+import json
+import re
 import subprocess
 import sys
 import tempfile
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-# Substrings of denied licence names, matched against unnormalised metadata.
-# "GPL" also matches LGPL, which is allowed only for the reviewed packages below.
-DENIED_LICENCES = ["General Public License", "GPL", "UNKNOWN"]
+# Substrings of denied licence names, matched case-insensitively against the
+# unnormalised metadata. "GPL" also matches LGPL, which is allowed only for the
+# reviewed packages below.
+DENIED_LICENCES = ("General Public License", "GPL", "UNKNOWN", "Proprietary")
 
-# Reviewed exceptions (ADR 0004). Adding one needs a documented review and an
-# entry in NOTICE.
-REVIEWED_LGPL = ["soxr", "num2words"]
+# Reviewed exceptions. Adding one needs a documented review and an entry in NOTICE.
+REVIEWED_LGPL = {
+    "soxr": "LGPL-2.1-or-later, used unmodified through normal imports; pulled in by "
+    "Pipecat (ADR 0004)",
+    "num2words": "LGPL-2.1, used unmodified through normal imports; misaki's English "
+    "G2P needs it (ADR 0004)",
+}
+# Matched as shell-style patterns, and excused only from the proprietary rule.
+REVIEWED_PROPRIETARY = {
+    "nvidia-*-cu12": "NVIDIA's CUDA user-space libraries that ctranslate2 loads (ADR "
+    "0002); installed locally by the optional bench group and never redistributed, "
+    "because no image is published",
+}
+
+
+def normalise(name: str) -> str:
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def licence_problems(packages: Iterable[Mapping[str, str]]) -> list[str]:
+    """`name: licence` for every installed package the policy rejects."""
+    problems = []
+    for package in packages:
+        name, licence = normalise(package["Name"]), package["License"]
+        if name in REVIEWED_LGPL:
+            continue
+        denied = {d for d in DENIED_LICENCES if d.casefold() in licence.casefold()}
+        if any(fnmatch.fnmatchcase(name, pattern) for pattern in REVIEWED_PROPRIETARY):
+            denied.discard("Proprietary")
+        if denied:
+            problems.append(f"{package['Name']}: {licence}")
+    return problems
 
 
 def run(cmd: list[str]) -> int:
@@ -63,17 +100,15 @@ def audit_vulnerabilities(requirements: Path) -> int:
 
 
 def check_licences() -> int:
-    return run(
-        [
-            sys.executable,
-            "-m",
-            "piplicenses",
-            "--partial-match",
-            f"--fail-on={';'.join(DENIED_LICENCES)}",
-            "--ignore-packages",
-            *REVIEWED_LGPL,
-        ]
-    )
+    cmd = [sys.executable, "-m", "piplicenses", "--from=mixed", "--format=json"]
+    print("$", " ".join(cmd), flush=True)
+    report = subprocess.run(cmd, cwd=REPO_ROOT, check=True, capture_output=True, text=True)
+    packages = json.loads(report.stdout)
+    problems = licence_problems(packages)
+    print(f"{len(packages)} installed packages checked.")
+    for problem in problems:
+        print(f"denied licence: {problem}", file=sys.stderr)
+    return 1 if problems else 0
 
 
 def main() -> int:

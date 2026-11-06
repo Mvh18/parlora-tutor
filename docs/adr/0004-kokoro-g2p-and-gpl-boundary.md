@@ -12,7 +12,7 @@
 
 Text-to-speech will use Kokoro (model weights Apache-2.0). Kokoro needs a
 grapheme-to-phoneme (G2P) step that turns text into phonemes. Its usual G2P
-library, misaki (MIT), looks words up in a dictionary and falls back to
+library, misaki (Apache-2.0), looks words up in a dictionary and falls back to
 espeak-ng for out-of-vocabulary (OOV) words. espeak-ng is GPL-3.0.
 
 Parlora is licensed under PolyForm Noncommercial 1.0.0, which is not
@@ -135,12 +135,12 @@ Everything else in both images was MIT, BSD, Apache-2.0, ISC or PSF.
    `pipecat-ai[kokoro]`, `kokoro-onnx`, `misaki[en]` or `kokoro`, and never
    imports `phonemizer`, `phonemizer-fork` or `espeakng-loader`.
 2. **Parlora ships its own Kokoro TTS service** for Pipecat: misaki without
-   extras (MIT) for G2P, the Kokoro ONNX weights (Apache-2.0) run with
+   extras (Apache-2.0) for G2P, the Kokoro ONNX weights (Apache-2.0) run with
    onnxruntime, and a small runner based on kokoro-onnx (MIT, attributed).
 3. **OOV words go to an external `espeak-ng` executable**, run as a separate
    process with a timeout. Parlora passes it one word and reads back phonemes;
    no espeak-ng code is linked or imported. The IPA-to-Kokoro phoneme table
-   comes from misaki (MIT, attributed).
+   comes from misaki (Apache-2.0, attributed).
 4. **How espeak-ng gets there:** the server Dockerfile installs the Debian
    `espeak-ng` package when the user builds the image locally. Parlora does
    not publish images (a non-goal of this project), and its repository
@@ -172,8 +172,8 @@ Everything else in both images was MIT, BSD, Apache-2.0, ISC or PSF.
 - spaCy and its `en_core_web_sm` model (MIT) become server dependencies,
   adding about 190 MB to the image.
 - `NOTICE` must list espeak-ng (GPL-3.0, separate executable), Kokoro weights
-  (Apache-2.0), misaki and kokoro-onnx (MIT, adapted code), and the LGPL
-  Python packages.
+  (Apache-2.0), misaki (Apache-2.0) and kokoro-onnx (MIT), both adapted code,
+  and the LGPL Python packages.
 - The dependency-review configuration in the security work encodes the
   licence policy above.
 

@@ -83,6 +83,25 @@ def test_dependency_review_denies_gpl_g2p_packages(repo_root: Path) -> None:
     assert denied >= GPL_PACKAGES
 
 
+def test_dependency_review_excuses_exactly_the_locked_cuda_wheels(repo_root: Path) -> None:
+    import fnmatch
+    import tomllib
+
+    from scripts.audit_python_deps import REVIEWED_PROPRIETARY
+
+    config = load_yaml(repo_root / ".github" / "dependency-review-config.yml")
+    allowed = {p.removeprefix("pkg:pypi/") for p in config["allow-dependencies-licenses"]}
+    lock = tomllib.loads((repo_root / "uv.lock").read_text(encoding="utf-8"))
+    cuda = {
+        p["name"]
+        for p in lock["package"]
+        if any(fnmatch.fnmatchcase(p["name"], pattern) for pattern in REVIEWED_PROPRIETARY)
+    }
+    assert cuda, "no CUDA wheels in uv.lock"
+    excused = {name for name in allowed if name.startswith("nvidia-")}
+    assert excused == cuda, "dependency review and the Python gate disagree on CUDA wheels"
+
+
 def test_security_gate_is_part_of_ci_ok(repo_root: Path) -> None:
     jobs = load_yaml(repo_root / ".github" / "workflows" / "ci.yml")["jobs"]
     callers = [
