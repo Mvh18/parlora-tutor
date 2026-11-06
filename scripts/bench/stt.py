@@ -72,16 +72,15 @@ def load_fixtures(directory: Path = FIXTURES) -> list[Fixture]:
 
 def add_cuda_dll_directories() -> list[str]:
     """On Windows, let ctranslate2 find the cuBLAS/cuDNN DLLs of the NVIDIA wheels."""
-    if sys.platform != "win32":
-        return []
-    import site
+    added: list[str] = []
+    if sys.platform == "win32":
+        import site
 
-    added = []
-    for base in site.getsitepackages():
-        for bin_dir in sorted(Path(base, "nvidia").glob("*/bin")):
-            os.add_dll_directory(str(bin_dir))
-            os.environ["PATH"] = f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"
-            added.append(bin_dir.parent.name)
+        for base in site.getsitepackages():
+            for bin_dir in sorted(Path(base, "nvidia").glob("*/bin")):
+                os.add_dll_directory(str(bin_dir))
+                os.environ["PATH"] = f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"
+                added.append(bin_dir.parent.name)
     return added
 
 
