@@ -1,0 +1,4 @@
+parlora-server-1	412.6MiB / 7.691GiB
+parlora-postgres-1	38.2MiB / 7.691GiB
+s1-a	185.3MiB / 7.691GiB
+parlora-broken-1	--
