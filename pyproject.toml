@@ -119,6 +119,11 @@ files = [
     "apps/server/alembic/env.py",
 ]
 
+# Libraries of the optional bench group: not installed by default and untyped.
+[[tool.mypy.overrides]]
+module = ["pynvml", "faster_whisper.*", "ctranslate2.*", "onnxruntime.*", "misaki.*", "soundfile"]
+ignore_missing_imports = true
+
 # ── pytest ──────────────────────────────────────────────────────────────────
 [tool.pytest.ini_options]
 minversion = "8.4"
