@@ -86,6 +86,15 @@ openapi:
 gen-client:
     pnpm --filter @parlora/web gen-client
 
+# Install the optional bench group and check that the GPU and the host's Ollama answer
+bench-setup:
+    uv sync --group bench
+    uv run --group bench python -m scripts.bench.host
+
+# Benchmark the LLM through the host's Ollama (default: qwen3 4B instruct, gemma3:4b, qwen3:8b)
+bench-llm *models:
+    uv run --group bench python -m scripts.bench.llm {{ models }}
+
 # Scan for secrets, audit workflows and check Python dependencies (ADR 0005)
 security:
     uv run pre-commit run gitleaks --all-files

@@ -1,0 +1,263 @@
+{
+  "schema_version": 1,
+  "component": "llm",
+  "variant": "qwen3-8b",
+  "created_at": "2026-11-06T17:34:30Z",
+  "machine": {
+    "os": "Windows",
+    "os_version": "10.0.26200",
+    "cpu": "AMD Ryzen 5 5600G with Radeon Graphics",
+    "ram_total_mb": 16252,
+    "gpu": "NVIDIA GeForce RTX 4060",
+    "vram_total_mb": 8188,
+    "driver": "616.56",
+    "cuda_runtime": null,
+    "docker_engine": null
+  },
+  "software": {
+    "python": "3.12.15",
+    "ollama": "0.40.15",
+    "model": "qwen3:8b",
+    "digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+    "size_mb": 4983,
+    "parameter_size": "8.2B",
+    "quantization": "Q4_K_M",
+    "capabilities": [
+      "completion",
+      "tools",
+      "thinking"
+    ],
+    "vram_sampler": "nvml"
+  },
+  "settings": {
+    "endpoint": "http://127.0.0.1:11434",
+    "api": "/api/chat",
+    "options": {
+      "num_ctx": 4096,
+      "temperature": 0,
+      "seed": 42,
+      "num_predict": 128
+    },
+    "think": false,
+    "warm_runs": 10,
+    "keep_alive_warm": "10m",
+    "prompts_sha256": "dc2f5a33e8150767ac883e4c96c275131b37d18219752b49dc5ef19eb5d3477c",
+    "ttft_definition": "client-side, request sent to first non-empty token chunk",
+    "budget_statistic": "warm p95"
+  },
+  "measurements": {
+    "ttft_s": {
+      "cold": 13.848689499999637,
+      "warm": [
+        0.05486309999969308,
+        0.05072189999964394,
+        0.07563979999986259,
+        0.0735951000001478,
+        0.09361119999994116,
+        0.05772560000013982,
+        0.060581100000035804,
+        0.062308000000030006,
+        0.06077000000004773,
+        0.07478369999989809
+      ],
+      "summary": {
+        "count": 10,
+        "min": 0.05072189999964394,
+        "p50": 0.06153900000003887,
+        "p95": 0.08552406999990582,
+        "max": 0.09361119999994116,
+        "mean": 0.066459949999944
+      }
+    },
+    "tokens_per_s": {
+      "cold": 38.84187245243013,
+      "warm": [
+        47.224300898714766,
+        46.452616879139,
+        45.29627703990799,
+        44.91023474800573,
+        45.502962863377356,
+        46.30517758035602,
+        44.26887735602654,
+        45.052582800211106,
+        46.22129877447528,
+        45.75634419883093
+      ],
+      "summary": {
+        "count": 10,
+        "min": 44.26887735602654,
+        "p50": 45.62965353110414,
+        "p95": 46.87704308990567,
+        "max": 47.224300898714766,
+        "mean": 45.69906731390447
+      }
+    },
+    "prompt_eval_s": {
+      "cold": 0.370814,
+      "warm": [
+        0.032851999,
+        0.033817,
+        0.040949,
+        0.031682,
+        0.032534999,
+        0.032758,
+        0.034912,
+        0.035412,
+        0.031522,
+        0.034728
+      ],
+      "summary": {
+        "count": 10,
+        "min": 0.031522,
+        "p50": 0.0333344995,
+        "p95": 0.03845735,
+        "max": 0.040949,
+        "mean": 0.0341166998
+      }
+    },
+    "load_s": {
+      "cold": 13.4617169
+    },
+    "runs": {
+      "cold": {
+        "ttft_s": 13.848689499999637,
+        "total_s": 14.2840061,
+        "load_s": 13.4617169,
+        "prompt_eval_s": 0.370814,
+        "prompt_eval_count": 75,
+        "eval_s": 0.437672,
+        "eval_count": 17,
+        "tokens_per_s": 38.84187245243013,
+        "done_reason": "stop"
+      },
+      "warm": [
+        {
+          "ttft_s": 0.05486309999969308,
+          "total_s": 0.3282567,
+          "load_s": 0.0128747,
+          "prompt_eval_s": 0.032851999,
+          "prompt_eval_count": 77,
+          "eval_s": 0.275282,
+          "eval_count": 13,
+          "tokens_per_s": 47.224300898714766,
+          "done_reason": "stop"
+        },
+        {
+          "ttft_s": 0.05072189999964394,
+          "total_s": 0.4015935,
+          "load_s": 0.0081999,
+          "prompt_eval_s": 0.033817,
+          "prompt_eval_count": 78,
+          "eval_s": 0.344437,
+          "eval_count": 16,
+          "tokens_per_s": 46.452616879139,
+          "done_reason": "stop"
+        },
+        {
+          "ttft_s": 0.07563979999986259,
+          "total_s": 0.5781307,
+          "load_s": 0.0153409,
+          "prompt_eval_s": 0.040949,
+          "prompt_eval_count": 76,
+          "eval_s": 0.507768,
+          "eval_count": 23,
+          "tokens_per_s": 45.29627703990799,
+          "done_reason": "stop"
+        },
+        {
+          "ttft_s": 0.0735951000001478,
+          "total_s": 1.4074877,
+          "load_s": 0.0104089,
+          "prompt_eval_s": 0.031682,
+          "prompt_eval_count": 77,
+          "eval_s": 1.358265,
+          "eval_count": 61,
+          "tokens_per_s": 44.91023474800573,
+          "done_reason": "stop"
+        },
+        {
+          "ttft_s": 0.09361119999994116,
+          "total_s": 0.5505965,
+          "load_s": 0.0097327,
+          "prompt_eval_s": 0.032534999,
+          "prompt_eval_count": 75,
+          "eval_s": 0.483485,
+          "eval_count": 22,
+          "tokens_per_s": 45.502962863377356,
+          "done_reason": "stop"
+        },
+        {
+          "ttft_s": 0.05772560000013982,
+          "total_s": 0.3582583,
+          "load_s": 0.0136917,
+          "prompt_eval_s": 0.032758,
+          "prompt_eval_count": 77,
+          "eval_s": 0.302342,
+          "eval_count": 14,
+          "tokens_per_s": 46.30517758035602,
+          "done_reason": "stop"
+        },
+        {
+          "ttft_s": 0.060581100000035804,
+          "total_s": 0.7355949,
+          "load_s": 0.0144095,
+          "prompt_eval_s": 0.034912,
+          "prompt_eval_count": 76,
+          "eval_s": 0.677677,
+          "eval_count": 30,
+          "tokens_per_s": 44.26887735602654,
+          "done_reason": "stop"
+        },
+        {
+          "ttft_s": 0.062308000000030006,
+          "total_s": 0.527472,
+          "load_s": 0.0151517,
+          "prompt_eval_s": 0.035412,
+          "prompt_eval_count": 78,
+          "eval_s": 0.466122,
+          "eval_count": 21,
+          "tokens_per_s": 45.052582800211106,
+          "done_reason": "stop"
+        },
+        {
+          "ttft_s": 0.06077000000004773,
+          "total_s": 0.5132145,
+          "load_s": 0.0142422,
+          "prompt_eval_s": 0.031522,
+          "prompt_eval_count": 74,
+          "eval_s": 0.454336,
+          "eval_count": 21,
+          "tokens_per_s": 46.22129877447528,
+          "done_reason": "stop"
+        },
+        {
+          "ttft_s": 0.07478369999989809,
+          "total_s": 0.6626146,
+          "load_s": 0.0085131,
+          "prompt_eval_s": 0.034728,
+          "prompt_eval_count": 79,
+          "eval_s": 0.611937,
+          "eval_count": 28,
+          "tokens_per_s": 45.75634419883093,
+          "done_reason": "stop"
+        }
+      ]
+    },
+    "vram_mb": {
+      "baseline": 982,
+      "peak": 6431,
+      "peak_above_baseline": 5449,
+      "ollama_size_vram": 5327
+    }
+  },
+  "checks": [
+    {
+      "name": "llm_warm_ttft",
+      "status": "pass",
+      "value": 0.08552406999990582,
+      "limit": 0.4,
+      "unit": "s",
+      "detail": "roadmap latency target, LLM share of a turn"
+    }
+  ]
+}

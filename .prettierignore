@@ -4,6 +4,9 @@ pnpm-lock.yaml
 CHANGELOG.md
 contracts/openapi.json
 apps/web/src/lib/api/schema.d.ts
+# Written by scripts/bench/fixtures.py and scripts/bench/common/results.py
+fixtures/synthetic/stt/manifest.json
+benchmarks/results/
 
 # Legal text must stay verbatim
 LICENSE

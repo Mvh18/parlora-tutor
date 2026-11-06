@@ -1,0 +1,14 @@
+{
+  "models": [
+    {
+      "name": "qwen3:4b",
+      "model": "qwen3:4b",
+      "size": 3900000000,
+      "digest": "e55aed6fe643",
+      "details": { "parameter_size": "4.0B", "quantization_level": "Q4_K_M" },
+      "expires_at": "2026-11-06T10:05:00Z",
+      "size_vram": 3670016000,
+      "context_length": 4096
+    }
+  ]
+}
