@@ -97,8 +97,15 @@ bench-llm *models:
 
 # Regenerate the synthetic speech fixtures with Kokoro in the bench image (espeak-ng for OOV words)
 bench-fixtures:
-    docker build --file docker/server.Dockerfile --target bench --tag parlora-bench .
-    docker run --rm --volume "{{ justfile_directory() }}:/app" --volume parlora-bench-cache:/cache parlora-bench python -m scripts.bench.fixtures
+    uv run python -m scripts.bench.container --writable fixtures/synthetic/stt scripts.bench.fixtures
+
+# Benchmark speech-to-text natively (faster-whisper on the GPU)
+bench-stt *args:
+    uv run --group bench python -m scripts.bench.stt {{ args }}
+
+# Benchmark speech-to-text in the bench image with the GPU (repository read-only)
+bench-stt-container *args:
+    uv run python -m scripts.bench.container --gpu --writable benchmarks/results scripts.bench.stt {{ args }}
 
 # Scan for secrets, audit workflows and check Python dependencies (ADR 0005)
 security:
