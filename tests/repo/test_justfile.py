@@ -21,6 +21,8 @@ REQUIRED_RECIPES = [
     "test-web",
     "test-repo",
     "test-bench",
+    "bench-setup",
+    "bench-llm",
     "e2e",
     "openapi",
     "gen-client",
