@@ -42,6 +42,9 @@ services:
       PARLORA_DATABASE__URL: postgresql+asyncpg://parlora:parlora@postgres:5432/parlora
     ports:
       - "127.0.0.1:${PARLORA_SERVER_HOST_PORT:-8700}:8000"
+    volumes:
+      # Whisper and Kokoro weights, downloaded on first start, never in the image.
+      - parlora-models:/models
     extra_hosts:
       # Native Ollama on the host (the default PARLORA_LLM__BASE_URL).
       - "host.docker.internal:host-gateway"
@@ -87,3 +90,4 @@ services:
 volumes:
   postgres-data:
   ollama-models:
+  parlora-models:

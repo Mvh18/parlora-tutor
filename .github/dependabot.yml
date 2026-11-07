@@ -15,10 +15,12 @@ updates:
       prefix-development: build
       include: scope
     groups:
-      # The optional bench group (scripts/bench) moves on its own: its speech
-      # and CUDA wheels are large and are checked by running the benchmarks.
-      bench:
+      # The voice stack moves on its own: its speech and CUDA wheels are large
+      # and are checked by running the benchmarks and a call.
+      voice:
         patterns:
+          - pipecat-ai
+          - aiortc
           - faster-whisper
           - ctranslate2
           - nvidia-*

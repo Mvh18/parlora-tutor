@@ -1,14 +1,17 @@
 # syntax=docker/dockerfile:1
-# Parlora server image (design D12, ADR 0002).
+# Parlora server image (design D12, ADR 0002). Built locally; never published.
 #
 # Targets:
 #   dev      - editable install; compose.dev.yaml bind-mounts the sources and
 #              uvicorn reloads on change.
-#   bench    - local benchmark image (scripts/bench); never published.
+#   bench    - local benchmark image (scripts/bench): the server image plus the
+#              benchmark-only extras.
 #   runtime  - the default: a frozen, non-editable install of the server only.
 #
-# The slim uv image is enough: CUDA user-space libraries will arrive as pip
-# wheels with the voice pipeline, cached in the dependency layer below.
+# Every target carries the voice stack: the CUDA user-space libraries arrive as
+# pip wheels in the dependency layer, and the espeak-ng executable speaks
+# out-of-vocabulary words as a separate GPL-3.0 process (ADR 0004). Model weights
+# are never baked in: they live in a named volume mounted at /models.
 
 FROM ghcr.io/astral-sh/uv:0.13.7-python3.12-trixie-slim@sha256:d4a752dd52f42e0c508bb0b6a912f15922bb32e42f66af30671c3fdc0d759f21 AS base
 
@@ -16,11 +19,21 @@ ENV PYTHONUNBUFFERED=1 \
     UV_LINK_MODE=copy \
     UV_PYTHON_DOWNLOADS=0 \
     UV_PROJECT_ENVIRONMENT=/opt/venv \
-    PATH=/opt/venv/bin:$PATH
+    PATH=/opt/venv/bin:$PATH \
+    # ctranslate2 does not find the cuBLAS/cuDNN wheel libraries by itself (ADR 0002).
+    LD_LIBRARY_PATH=/opt/venv/lib/python3.12/site-packages/nvidia/cublas/lib:/opt/venv/lib/python3.12/site-packages/nvidia/cudnn/lib \
+    HF_HOME=/models/huggingface \
+    PARLORA_MODELS_DIR=/models
 
-# A fixed, unprivileged user; the application never runs as root.
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends espeak-ng \
+    && rm -rf /var/lib/apt/lists/*
+
+# A fixed, unprivileged user; the application never runs as root. The models
+# volume takes /models' owner on first use, so that user can fill the caches.
 RUN groupadd --system --gid 10001 parlora \
-    && useradd --system --uid 10001 --gid parlora --no-create-home --shell /usr/sbin/nologin parlora
+    && useradd --system --uid 10001 --gid parlora --no-create-home --shell /usr/sbin/nologin parlora \
+    && mkdir /models && chown parlora:parlora /models
 
 WORKDIR /app
 
@@ -47,28 +60,21 @@ EXPOSE 8000
 CMD ["uvicorn", "--factory", "parlora_server.main:create_app", "--host", "0.0.0.0", "--port", "8000", \
      "--reload", "--reload-dir", "/app/apps/server/src", "--reload-dir", "/app/packages/core/src"]
 
-# Component benchmarks (scripts/bench), local only: never published. Adds the
-# optional bench group, the CUDA wheel libraries ctranslate2 needs on its path
-# (ADR 0002) and the espeak-ng executable for OOV words, run as a separate
-# process (GPL-3.0, ADR 0004). The repository is mounted at /app at run time.
+# Component benchmarks (scripts/bench), local only. Adds the benchmark-only
+# extras; the repository is mounted at /app at run time.
 FROM deps AS bench
-RUN apt-get update \
-    && apt-get install --yes --no-install-recommends espeak-ng \
-    && rm -rf /var/lib/apt/lists/*
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     --mount=type=bind,source=packages/core/pyproject.toml,target=packages/core/pyproject.toml \
     --mount=type=bind,source=apps/server/pyproject.toml,target=apps/server/pyproject.toml \
     uv sync --frozen --no-dev --group bench --inexact --no-install-workspace
-ENV LD_LIBRARY_PATH=/opt/venv/lib/python3.12/site-packages/nvidia/cublas/lib:/opt/venv/lib/python3.12/site-packages/nvidia/cudnn/lib
-# Weights (Kokoro, Whisper) live in a named volume mounted here; on first use it
-# takes this directory's owner, so the unprivileged user can write to it.
+# Benchmark weights live in their own named volume mounted here.
 RUN mkdir /cache && chown parlora:parlora /cache
 ENV PARLORA_BENCH_CACHE=/cache \
     HF_HOME=/cache/huggingface
 USER parlora
-CMD ["python", "-c", "import faster_whisper, onnxruntime, misaki, spacy; print('bench image ready')"]
+CMD ["python", "-c", "import faster_whisper, onnxruntime, misaki, spacy, pipecat; print('bench image ready')"]
 
 FROM deps AS build
 ENV UV_COMPILE_BYTECODE=1

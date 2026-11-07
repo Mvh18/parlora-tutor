@@ -1,10 +1,13 @@
 # Override for CI runners and machines without an NVIDIA GPU:
 #   docker compose -f compose.yaml -f compose.nogpu.yaml up   (or `just up nogpu`)
-# Removes the GPU reservations; everything else is unchanged.
+# Removes the GPU reservations and turns the voice pipeline off: the server
+# starts, and readiness reports the voice checks as disabled.
 
 services:
   server:
     deploy: !reset {}
+    environment:
+      PARLORA_VOICE__ENABLED: "false"
 
   ollama:
     deploy: !reset {}
