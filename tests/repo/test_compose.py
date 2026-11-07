@@ -207,3 +207,16 @@ def test_dockerignore_keeps_secrets_out_of_the_build_context(repo_root: Path) ->
     # Allow-list: exclude everything, then re-include only what the image needs.
     assert rules[0] == "*"
     assert not [rule for rule in rules if ".env" in rule and rule.startswith("!")]
+
+
+def test_server_keeps_model_weights_in_a_named_volume(config: dict[str, Any]) -> None:
+    mounts = config["services"]["server"].get("volumes", [])
+    models = [m for m in mounts if m.get("target") == "/models"]
+    assert models, "the server mounts no volume at /models"
+    assert models[0]["type"] == "volume"
+    assert models[0]["source"] == "parlora-models"
+
+
+def test_nogpu_turns_the_voice_pipeline_off(repo_root: Path, tmp_path: Path) -> None:
+    config = render(repo_root, tmp_path, "compose.yaml", "compose.nogpu.yaml")
+    assert config["services"]["server"]["environment"]["PARLORA_VOICE__ENABLED"] == "false"
