@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/Mvh18/parlora-tutor/compare/v0.4.0...v0.5.0) (2026-11-07)
+
+
+### Features
+
+* **core:** add streaming domain ports ([#99](https://github.com/Mvh18/parlora-tutor/issues/99)) ([f440c6d](https://github.com/Mvh18/parlora-tutor/commit/f440c6dada9ee6b8a5558f5885a5abc1fa9d20e6))
+
 ## [0.4.0](https://github.com/Mvh18/parlora-tutor/compare/v0.3.0...v0.4.0) (2026-10-29)
 
 
