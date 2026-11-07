@@ -1,12 +1,14 @@
-"""Speech-to-text port (provisional until Phase 1)."""
+"""Speech-to-text port."""
 
 from typing import Protocol
 
+from parlora_core.audio import AudioChunk, Transcript
 from parlora_core.languages import LanguageCode
 
 
 class SpeechToText(Protocol):
-    """Transcribes a learner's speech."""
+    """Transcribes one learner turn."""
 
-    async def transcribe(self, audio: bytes, *, language: LanguageCode) -> str:
-        """Return the transcript of `audio`, spoken in `language`."""
+    async def transcribe(self, audio: AudioChunk, *, language: LanguageCode) -> Transcript:
+        """Return what was said in `audio`, spoken in `language`."""
+        ...

@@ -14,6 +14,7 @@ pytestmark = pytest.mark.unit
         errors.InvalidCefrLevel,
         errors.InvalidLearnerRef,
         errors.InvalidSessionSettings,
+        errors.InvalidAudio,
     ],
 )
 def test_every_error_is_a_domain_error(error: type[errors.DomainError]) -> None:
@@ -28,6 +29,7 @@ def test_every_error_is_a_domain_error(error: type[errors.DomainError]) -> None:
         errors.InvalidCefrLevel,
         errors.InvalidLearnerRef,
         errors.InvalidSessionSettings,
+        errors.InvalidAudio,
     ],
 )
 def test_invalid_values_are_value_errors(error: type[errors.DomainError]) -> None:

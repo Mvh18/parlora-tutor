@@ -1,7 +1,8 @@
 """Ports the domain needs from the outside world, as `typing.Protocol`s.
 
-PROVISIONAL: these shapes are placeholders until the voice loop of Phase 1
-settles them; expect breaking changes. Adapters live in the server, never here.
+Speech and language ports stream: the language model yields text as it writes,
+text-to-speech yields audio as it synthesises, so a reply can be spoken before it is
+complete. Adapters live in the server, never here.
 """
 
 from parlora_core.ports.llm import LanguageModel, Message

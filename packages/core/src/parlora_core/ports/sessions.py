@@ -1,4 +1,4 @@
-"""Session repository port (provisional until Phase 1)."""
+"""Session repository port (its shape is settled with persistence in Phase 5)."""
 
 from typing import Protocol
 
