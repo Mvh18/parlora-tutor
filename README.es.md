@@ -81,9 +81,12 @@ de ningún framework y el servidor es un adaptador fino a su alrededor; ver
 | Sistema    | Windows 11 (WSL2), Linux o macOS                              | Windows 11 con Docker Desktop (WSL2)               |
 | Software   | Docker, git, [uv](https://docs.astral.sh/uv/), Node.js 24 LTS | más el driver de NVIDIA con soporte de GPU en WSL2 |
 
-Todo lo que usará la GPU en fases posteriores (Whisper y el modelo de
-lenguaje) está dimensionado para caber en 8 GB de VRAM; la síntesis de voz
-corre en la CPU.
+Todo lo que usa la GPU (Whisper y el modelo de lenguaje) está dimensionado para
+caber en 8 GB de VRAM ([ADR 0009](docs/adr/0009-phase-1-llm-and-vram-budget.md)).
+La pila de voz hace que `just setup` descargue unos 3 GB de paquetes de Python
+(sobre todo las librerías CUDA de NVIDIA) y que la imagen del servidor ocupe
+unos 5 GB; los pesos de Whisper y Kokoro (unos 2 GB) se descargan en el primer
+arranque en un volumen de Docker.
 
 ## Inicio rápido
 

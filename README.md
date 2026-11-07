@@ -78,8 +78,11 @@ the [decision records](docs/adr/).
 | OS        | Windows 11 (WSL2), Linux or macOS                             | Windows 11 with Docker Desktop (WSL2)        |
 | Software  | Docker, git, [uv](https://docs.astral.sh/uv/), Node.js 24 LTS | plus the NVIDIA driver with WSL2 GPU support |
 
-Everything that runs on the GPU in later phases (Whisper and the language
-model) is sized to fit in 8 GB of VRAM; speech synthesis runs on the CPU.
+Everything that runs on the GPU (Whisper and the language model) is sized to
+fit in 8 GB of VRAM ([ADR 0009](docs/adr/0009-phase-1-llm-and-vram-budget.md)).
+The speech stack makes `just setup` download about 3 GB of Python wheels
+(mostly NVIDIA's CUDA libraries) and the server image about 5 GB; Whisper and
+Kokoro weights (about 2 GB) are downloaded on first start into a Docker volume.
 
 ## Quickstart
 

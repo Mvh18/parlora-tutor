@@ -235,3 +235,10 @@ def test_adr_0009_records_the_benchmark_decisions(repo_root: Path) -> None:
     linked = re.findall(r"\(\.\./\.\./(benchmarks/results/[^)]+\.json)\)", text)
     assert linked, "ADR 0009 must link the result files it is based on"
     assert all((repo_root / path).is_file() for path in linked)
+
+
+def test_notice_lists_the_voice_pipeline_as_installed(repo_root: Path) -> None:
+    text = read(repo_root, "NOTICE")
+    for component in ["Pipecat", "Silero VAD", "Smart Turn", "aiortc"]:
+        assert component in text, f"NOTICE does not list {component}"
+    assert "Planned." not in text, "the server installs every listed component now"
