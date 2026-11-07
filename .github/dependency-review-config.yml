@@ -20,6 +20,8 @@ allow-licenses:
   - ISC
   - MIT
   - MIT-0
+  # Permissive MIT variant (CMU/HPND style) used by pillow (via Pipecat).
+  - MIT-CMU
   - MPL-2.0
   - PSF-2.0
   - Python-2.0
@@ -39,9 +41,14 @@ allow-dependencies-licenses:
   - pkg:pypi/nvidia-cudnn-cu12
   # Permissive, but reported as compound expressions outside the list above:
   # protobuf is BSD-3-Clause plus Google's BSD-style protobuf notice, and regex
-  # is Apache-2.0 plus CNRI-Python code from CPython's sre engine.
+  # is Apache-2.0 plus CNRI-Python code from CPython's sre engine. llvmlite (via
+  # numba and Pipecat) is BSD-2-Clause plus LLVM's Apache-2.0 WITH LLVM-exception.
   - pkg:pypi/protobuf
   - pkg:pypi/regex
+  - pkg:pypi/llvmlite
+  # Declares PSF-2.0; GitHub also reads GPL-1.0-or-later from the CPython
+  # licence history its LICENSE file reproduces (via aiohttp and Pipecat).
+  - pkg:pypi/aiohappyeyeballs
 
 # GPL grapheme-to-phoneme packages that must never enter the process.
 deny-packages:
