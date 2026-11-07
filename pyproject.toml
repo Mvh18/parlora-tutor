@@ -99,6 +99,9 @@ select = [
 "**/tests/**" = ["S101"]
 # Dev scripts run tools with fixed arguments built in the script itself.
 "scripts/**" = ["S603"]
+# IPA symbols are meant, not look-alikes of ASCII letters.
+"scripts/bench/kokoro_runner.py" = ["S603", "RUF001"]
+"tests/bench/test_kokoro_runner.py" = ["S101", "S603", "S607", "RUF001"]
 # Domain errors are named after the rule they enforce, as the domain-core spec does.
 "packages/core/src/parlora_core/errors.py" = ["N818"]
 
@@ -118,6 +121,19 @@ files = [
     "apps/server/tests",
     "apps/server/alembic/env.py",
 ]
+
+# Libraries of the optional bench group: not installed by default and untyped.
+[[tool.mypy.overrides]]
+module = [
+    "ctranslate2.*",
+    "faster_whisper.*",
+    "misaki.*",
+    "numpy.*",
+    "onnxruntime.*",
+    "pynvml",
+    "soundfile",
+]
+ignore_missing_imports = true
 
 # ── pytest ──────────────────────────────────────────────────────────────────
 [tool.pytest.ini_options]

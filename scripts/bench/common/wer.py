@@ -3,7 +3,8 @@
 Both texts are normalised the same way before scoring, so formatting choices of the
 speech-to-text model do not count as errors:
 
-- Unicode NFKC, typographic apostrophes to ASCII, case folded.
+- Unicode NFKC, typographic apostrophes to ASCII, accents dropped ("café" ->
+  "cafe"), case folded.
 - English contractions expanded ("I'm" -> "i am", "can't" -> "can not",
   "it's" -> "it is"); a remaining possessive "'s" keeps its letters ("annas").
 - Numbers spelled out: integers with thousands separators ("1,250"), decimals digit
@@ -139,6 +140,9 @@ def normalise(text: str) -> list[str]:
         .replace("\N{RIGHT SINGLE QUOTATION MARK}", "'")
         .replace("\N{LEFT SINGLE QUOTATION MARK}", "'")
     )
+    # Accents dropped: "Zürich" and "Zurich" are the same word to a listener.
+    decomposed = unicodedata.normalize("NFKD", text)
+    text = "".join(c for c in decomposed if not unicodedata.combining(c))
     text = _expand_contractions(text.casefold())
     text = _spell_numbers(text)
     text = _NOT_WORD.sub(" ", text).replace("'", "")

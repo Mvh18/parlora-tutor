@@ -125,6 +125,10 @@ Ollama on the host by default, or in the optional `ollama` profile.
 - WebRTC audio from the container works on the bridge network without
   publishing UDP ports for desktop browsers
   ([ADR 0003](adr/0003-webrtc-transport-from-docker.md)).
+- Component timings and the GPU memory of the voice components, measured on the
+  target machine, are in the generated [benchmark report](benchmarks.md); the
+  Phase 1 model and VRAM budget taken from them are in
+  [ADR 0009](adr/0009-phase-1-llm-and-vram-budget.md).
 
 ## Integration seams with the course platform
 

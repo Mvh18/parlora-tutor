@@ -1,0 +1,123 @@
+{
+  "description": "Synthetic English speech for the speech-to-text benchmark, generated with Kokoro by `just bench-fixtures` (scripts/bench/fixtures.py). No real voice. American spelling, to match the American voices and Whisper's output.",
+  "utterances": [
+    {
+      "id": "a1-greeting",
+      "cefr": "A1",
+      "voice": "af_heart",
+      "text": "Hello, my name is Anna. I am from Spain and I like coffee.",
+      "duration_s": 3.36,
+      "oov_words": []
+    },
+    {
+      "id": "a1-family",
+      "cefr": "A1",
+      "voice": "am_michael",
+      "text": "I have two brothers and one sister. We live in a small house near the park.",
+      "duration_s": 4.54,
+      "oov_words": []
+    },
+    {
+      "id": "a2-market",
+      "cefr": "A2",
+      "voice": "af_bella",
+      "text": "Last Saturday I went to the market with my friend Tom, and we bought fresh bread and some apples.",
+      "duration_s": 5.15,
+      "oov_words": []
+    },
+    {
+      "id": "a2-directions",
+      "cefr": "A2",
+      "voice": "af_heart",
+      "text": "Excuse me, how do I get to the train station? Is it far from here?",
+      "duration_s": 3.62,
+      "oov_words": []
+    },
+    {
+      "id": "a2-tickets",
+      "cefr": "A2",
+      "voice": "am_michael",
+      "text": "The train to Boston leaves from platform 12, and a return ticket costs 18 dollars.",
+      "duration_s": 5.99,
+      "oov_words": []
+    },
+    {
+      "id": "b1-work",
+      "cefr": "B1",
+      "voice": "af_bella",
+      "text": "I have been working as a nurse for six years, and I really enjoy helping people every day.",
+      "duration_s": 4.89,
+      "oov_words": []
+    },
+    {
+      "id": "b1-travel",
+      "cefr": "B1",
+      "voice": "af_heart",
+      "text": "When I visited Lisbon in 2019, the weather was warm and the food was absolutely delicious.",
+      "duration_s": 5.68,
+      "oov_words": []
+    },
+    {
+      "id": "b1-films",
+      "cefr": "B1",
+      "voice": "am_michael",
+      "text": "In my opinion, watching films is a fun way to learn a language, but you also need to speak a lot.",
+      "duration_s": 6.22,
+      "oov_words": []
+    },
+    {
+      "id": "b2-meeting",
+      "cefr": "B2",
+      "voice": "af_bella",
+      "text": "Siobhan suggested that we postpone the meeting until Thursday, because half of the team is still on vacation.",
+      "duration_s": 6.33,
+      "oov_words": [
+        "Siobhan"
+      ]
+    },
+    {
+      "id": "b2-traffic",
+      "cefr": "B2",
+      "voice": "af_heart",
+      "text": "Although public transport has improved a lot, many people still prefer driving, which makes the traffic in the city even worse.",
+      "duration_s": 7.23,
+      "oov_words": []
+    },
+    {
+      "id": "c1-research",
+      "cefr": "C1",
+      "voice": "am_michael",
+      "text": "The researchers acknowledged that their findings, while promising, could not be applied more widely without a considerably larger sample.",
+      "duration_s": 8.48,
+      "oov_words": []
+    },
+    {
+      "id": "c1-cafe",
+      "cefr": "C1",
+      "voice": "af_bella",
+      "text": "Having spent a semester in Zürich, she developed a genuine appreciation for its café culture and its unhurried pace of life.",
+      "duration_s": 7.77,
+      "oov_words": [
+        "café",
+        "Zürich"
+      ]
+    }
+  ],
+  "generator": {
+    "script": "scripts/bench/fixtures.py",
+    "kokoro_model_sha256": "7d5df8ecf7d4b1878015a32686053fd0eebe2bc377234608764cc0ef3636a6c5",
+    "voices_sha256": "bca610b8308e8d99f32e6fe4197e7ec01679264efed0cac9140fe9c29f1fbf7d",
+    "config_sha256": "5abb01e2403b072bf03d04fde160443e209d7a0dad49a423be15196b9b43c17f",
+    "packages": {
+      "misaki": "0.9.4",
+      "onnxruntime": "1.31.1",
+      "spacy": "3.8.18",
+      "en-core-web-sm": "3.8.0",
+      "numpy": "2.5.4"
+    },
+    "espeak_ng": "1.52.0",
+    "oov_mode": "cli",
+    "speed": 1.0,
+    "sample_rate": 16000
+  }
+}
