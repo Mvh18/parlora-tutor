@@ -55,9 +55,9 @@ test: test-repo test-bench test-core test-server test-web
 test-repo:
     uv run pytest tests/repo
 
-# Run the benchmark logic tests (no GPU, no Ollama) with its coverage gate (85 % lines and branches)
+# Run the benchmark logic and report tests (no GPU, no Ollama) with a coverage gate (85 % lines and branches)
 test-bench:
-    uv run pytest tests/bench -m "not gpu" --cov=scripts.bench.common --cov-report=term-missing --cov-report=json:build/coverage-bench.json
+    uv run pytest tests/bench -m "not gpu" --cov=scripts.bench.common --cov=scripts.bench.report --cov-report=term-missing --cov-report=json:build/coverage-bench.json
     uv run python scripts/coverage_gate.py build/coverage-bench.json --lines 85 --branches 85
 
 # Run the domain core tests with its coverage gate (95 % lines and branches)
@@ -118,6 +118,13 @@ bench-tts-container *args:
 # Check that speech-to-text and each LLM fit on the GPU together (hard VRAM limit), and record RAM
 bench-memory *models:
     uv run --group bench python -m scripts.bench.memory {{ models }}
+
+# Regenerate docs/benchmarks.md from the latest result of each benchmark
+bench-report:
+    uv run python -m scripts.bench.report
+
+# Run every benchmark in order, then regenerate the report (needs the GPU, Ollama and `just up`)
+bench: bench-llm bench-stt bench-stt-container bench-tts bench-tts-container bench-memory bench-report
 
 # Scan for secrets, audit workflows and check Python dependencies (ADR 0005)
 security:
