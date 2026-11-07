@@ -58,8 +58,14 @@ models ([ADR 0006](adr/0006-hexagonal-domain-core.md)):
   `SessionSettings`) are frozen dataclasses that validate on construction and
   raise subclasses of `DomainError`.
 - **Ports** in `parlora_core.ports` are `typing.Protocol`s for speech to text,
-  the language model, text to speech and session storage. They are
-  provisional until the voice loop (Phase 1) fixes their shape.
+  the language model, text to speech and session storage. The speech and
+  language ports stream: `SpeechToText.transcribe` takes an `AudioChunk` of
+  16-bit PCM and returns a `Transcript`, `LanguageModel.stream_reply` yields
+  text as the model writes, and `TextToSpeech.stream_speech` yields audio
+  chunks, so a reply is spoken before it is complete.
+- **Speech rules** in `parlora_core.speech` decide when a streamed reply can be
+  spoken (the first clause of 3–12 words, then whole sentences) and strip
+  markdown and emojis from what the voice reads.
 - **Adapters** in `parlora_server.adapters` implement the ports with real
   technology (faster-whisper, Ollama, Kokoro, PostgreSQL).
 
