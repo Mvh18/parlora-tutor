@@ -1,5 +1,6 @@
-"""Language-model port (provisional until Phase 1)."""
+"""Language-model port."""
 
+from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
@@ -15,7 +16,8 @@ class Message:
 
 
 class LanguageModel(Protocol):
-    """Produces the tutor's replies."""
+    """Writes the tutor's replies."""
 
-    async def reply(self, messages: list[Message]) -> str:
-        """Return the next assistant message for the conversation so far."""
+    def stream_reply(self, messages: Sequence[Message]) -> AsyncIterator[str]:
+        """Yield the next assistant message for the conversation so far, piece by piece."""
+        ...

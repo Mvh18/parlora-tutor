@@ -33,3 +33,7 @@ class InvalidLearnerRef(DomainError, ValueError):
 
 class InvalidSessionSettings(DomainError, ValueError):
     """Session settings break a domain rule."""
+
+
+class InvalidAudio(DomainError, ValueError):
+    """Audio or a transcript does not have a valid shape."""
