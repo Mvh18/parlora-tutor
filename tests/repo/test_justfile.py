@@ -29,6 +29,8 @@ REQUIRED_RECIPES = [
     "bench-tts",
     "bench-tts-container",
     "bench-memory",
+    "bench-report",
+    "bench",
     "e2e",
     "openapi",
     "gen-client",

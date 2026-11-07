@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "component": "stt",
+  "variant": "container",
+  "created_at": "2026-11-06T18:00:00Z",
+  "machine": {
+    "os": "Windows",
+    "os_version": "10.0.26200",
+    "cpu": "AMD Ryzen 5 5600G with Radeon Graphics",
+    "ram_total_mb": 16252,
+    "gpu": "NVIDIA GeForce RTX 4060",
+    "vram_total_mb": 8188,
+    "driver": "616.56",
+    "cuda_runtime": "12.9.2.10",
+    "docker_engine": null
+  },
+  "software": {
+    "python": "3.12.15",
+    "faster-whisper": "1.2.1",
+    "ctranslate2": "4.8.4",
+    "nvidia-cublas-cu12": "12.9.2.10",
+    "nvidia-cudnn-cu12": "9.27.0.42",
+    "nvidia-cuda-nvrtc-cu12": "12.9.86",
+    "vram_sampler": "nvml"
+  },
+  "settings": {
+    "model": "large-v3-turbo",
+    "device": "cuda",
+    "compute_type": "int8",
+    "beam_size": 5,
+    "warm_runs_per_fixture": 10,
+    "input": "float32 PCM"
+  },
+  "measurements": {
+    "error": "RuntimeError: CUDA driver version is insufficient"
+  },
+  "checks": [
+    {
+      "name": "stt_cuda",
+      "status": "fail",
+      "detail": "RuntimeError: CUDA driver version is insufficient"
+    }
+  ]
+}
