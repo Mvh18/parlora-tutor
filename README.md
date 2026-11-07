@@ -131,6 +131,24 @@ with the whole toolchain is available too.
 | `uv run just security`   | Secret scan, workflow audit, dependency audit        |
 | `uv run just check`      | Every gate CI runs                                   |
 
+### Benchmarks
+
+The component benchmarks measure the LLM, speech-to-text, text-to-speech and the
+GPU memory on your machine. They need an NVIDIA GPU and, for the LLM, Ollama
+on the host; they never run in CI. Results are JSON files in
+`benchmarks/results/` with no personal data, and
+[docs/benchmarks.md](docs/benchmarks.md) is generated from them. Decisions taken
+from the first round are in [ADR 0009](docs/adr/0009-phase-1-llm-and-vram-budget.md).
+
+| Command                          | What it does                                             |
+| -------------------------------- | -------------------------------------------------------- |
+| `uv run just bench-setup`        | Install the optional `bench` group, check GPU and Ollama |
+| `uv run just bench-llm [models]` | LLM through the host's Ollama                            |
+| `uv run just bench-stt`          | Speech-to-text natively (`-container` in Docker)         |
+| `uv run just bench-tts`          | Kokoro text-to-speech on the CPU (`-container` too)      |
+| `uv run just bench-memory`       | Hard VRAM check with STT and each LLM (after `just up`)  |
+| `uv run just bench`              | All of the above, then `bench-report`                    |
+
 ## Testing
 
 | Suite      | Command                   | Gate                                   |
@@ -140,6 +158,7 @@ with the whole toolchain is available too.
 | Web        | `uv run just test-web`    | ≥ 85 % on every metric                 |
 | End to end | `uv run just e2e`         | Playwright smoke with axe (after `up`) |
 | Repository | `uv run just test-repo`   | Invariants, documentation and links    |
+| Benchmarks | `uv run just test-bench`  | ≥ 85 %; logic only, no GPU or Ollama   |
 
 `uv run just test` runs every suite except end to end. Tests marked `gpu` are
 excluded in CI.

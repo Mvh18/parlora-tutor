@@ -136,6 +136,25 @@ así que los mismos comandos funcionan en PowerShell y en bash. También hay un
 | `uv run just security`   | Secretos, auditoría de workflows y de dependencias            |
 | `uv run just check`      | Todos los controles que ejecuta CI                            |
 
+### Benchmarks
+
+Los benchmarks de componentes miden el LLM, el reconocimiento de voz, la síntesis
+de voz y la memoria de la GPU en tu máquina. Necesitan una GPU NVIDIA y, para el
+LLM, Ollama en el host; nunca se ejecutan en CI. Los resultados son ficheros JSON
+en `benchmarks/results/` sin datos personales, y
+[docs/benchmarks.md](docs/benchmarks.md) se genera a partir de ellos. Las
+decisiones de la primera ronda están en
+[ADR 0009](docs/adr/0009-phase-1-llm-and-vram-budget.md).
+
+| Comando                           | Qué hace                                                     |
+| --------------------------------- | ------------------------------------------------------------ |
+| `uv run just bench-setup`         | Instala el grupo opcional `bench` y comprueba GPU y Ollama   |
+| `uv run just bench-llm [modelos]` | LLM a través del Ollama del host                             |
+| `uv run just bench-stt`           | Reconocimiento de voz nativo (`-container` en Docker)        |
+| `uv run just bench-tts`           | Síntesis con Kokoro en la CPU (también `-container`)         |
+| `uv run just bench-memory`        | Control estricto de VRAM con STT y cada LLM (tras `just up`) |
+| `uv run just bench`               | Todo lo anterior y después `bench-report`                    |
+
 ## Pruebas
 
 | Suite             | Comando                   | Umbral                                      |
@@ -145,6 +164,7 @@ así que los mismos comandos funcionan en PowerShell y en bash. También hay un
 | Web               | `uv run just test-web`    | ≥ 85 % en todas las métricas                |
 | Extremo a extremo | `uv run just e2e`         | Smoke de Playwright con axe (tras `up`)     |
 | Repositorio       | `uv run just test-repo`   | Invariantes, documentación y enlaces        |
+| Benchmarks        | `uv run just test-bench`  | ≥ 85 %; solo lógica, sin GPU ni Ollama      |
 
 `uv run just test` ejecuta todas las suites salvo la de extremo a extremo.
 Las pruebas marcadas `gpu` se excluyen en CI.

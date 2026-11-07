@@ -62,6 +62,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=apps/server/pyproject.toml,target=apps/server/pyproject.toml \
     uv sync --frozen --no-dev --group bench --inexact --no-install-workspace
 ENV LD_LIBRARY_PATH=/opt/venv/lib/python3.12/site-packages/nvidia/cublas/lib:/opt/venv/lib/python3.12/site-packages/nvidia/cudnn/lib
+# Weights (Kokoro, Whisper) live in a named volume mounted here; on first use it
+# takes this directory's owner, so the unprivileged user can write to it.
+RUN mkdir /cache && chown parlora:parlora /cache
+ENV PARLORA_BENCH_CACHE=/cache \
+    HF_HOME=/cache/huggingface
 USER parlora
 CMD ["python", "-c", "import faster_whisper, onnxruntime, misaki, spacy; print('bench image ready')"]
 

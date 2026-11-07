@@ -55,9 +55,9 @@ test: test-repo test-bench test-core test-server test-web
 test-repo:
     uv run pytest tests/repo
 
-# Run the benchmark logic tests (no GPU, no Ollama) with its coverage gate (85 % lines and branches)
+# Run the benchmark logic and report tests (no GPU, no Ollama) with a coverage gate (85 % lines and branches)
 test-bench:
-    uv run pytest tests/bench -m "not gpu" --cov=scripts.bench.common --cov-report=term-missing --cov-report=json:build/coverage-bench.json
+    uv run pytest tests/bench -m "not gpu" --cov=scripts.bench.common --cov=scripts.bench.report --cov-report=term-missing --cov-report=json:build/coverage-bench.json
     uv run python scripts/coverage_gate.py build/coverage-bench.json --lines 85 --branches 85
 
 # Run the domain core tests with its coverage gate (95 % lines and branches)
@@ -85,6 +85,46 @@ openapi:
 # Generate the TypeScript API client from the OpenAPI contract
 gen-client:
     pnpm --filter @parlora/web gen-client
+
+# Install the optional bench group and check that the GPU and the host's Ollama answer
+bench-setup:
+    uv sync --group bench
+    uv run --group bench python -m scripts.bench.host
+
+# Benchmark the LLM through the host's Ollama (default: qwen3 4B instruct, gemma3:4b, qwen3:8b)
+bench-llm *models:
+    uv run --group bench python -m scripts.bench.llm {{ models }}
+
+# Regenerate the synthetic speech fixtures with Kokoro in the bench image (espeak-ng for OOV words)
+bench-fixtures:
+    uv run python -m scripts.bench.container --writable fixtures/synthetic/stt scripts.bench.fixtures
+
+# Benchmark speech-to-text natively (faster-whisper on the GPU)
+bench-stt *args:
+    uv run --group bench python -m scripts.bench.stt {{ args }}
+
+# Benchmark speech-to-text in the bench image with the GPU (repository read-only)
+bench-stt-container *args:
+    uv run python -m scripts.bench.container --gpu --writable benchmarks/results scripts.bench.stt {{ args }}
+
+# Benchmark Kokoro text-to-speech natively on the CPU (OOV words silent without espeak-ng)
+bench-tts *args:
+    uv run --group bench python -m scripts.bench.tts {{ args }}
+
+# Benchmark Kokoro text-to-speech in the bench image (OOV words through espeak-ng)
+bench-tts-container *args:
+    uv run python -m scripts.bench.container --writable benchmarks/results scripts.bench.tts {{ args }}
+
+# Check that speech-to-text and each LLM fit on the GPU together (hard VRAM limit), and record RAM
+bench-memory *models:
+    uv run --group bench python -m scripts.bench.memory {{ models }}
+
+# Regenerate docs/benchmarks.md from the latest result of each benchmark
+bench-report:
+    uv run python -m scripts.bench.report
+
+# Run every benchmark in order, then regenerate the report (needs the GPU, Ollama and `just up`)
+bench: bench-llm bench-stt bench-stt-container bench-tts bench-tts-container bench-memory bench-report
 
 # Scan for secrets, audit workflows and check Python dependencies (ADR 0005)
 security:

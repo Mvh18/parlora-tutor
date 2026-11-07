@@ -32,7 +32,8 @@ def test_spec_example_scores_zero() -> None:
         ("My 12th and 40th birthday", "my twelfth and fortieth birthday"),
         ("It costs $5 or €20.50", "it costs five dollars or twenty point five zero euros"),
         ("About 50% of £3", "about fifty percent of three pounds"),
-        ("Café in Zürich", "café in zürich"),
+        ("Café in Zürich", "cafe in zurich"),
+        ("Zurich cafe", "zurich cafe"),
         ("   ", ""),
     ],
 )

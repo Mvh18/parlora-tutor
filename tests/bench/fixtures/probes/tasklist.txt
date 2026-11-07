@@ -1,0 +1,2 @@
+"ollama app.exe","26828","Console","1","27,388 KB"
+"ollama.exe","16132","Console","1","1,023,424 KB"
