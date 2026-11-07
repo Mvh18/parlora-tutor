@@ -32,7 +32,7 @@ allow-dependencies-licenses:
   # LGPL, used unmodified through normal imports (ADR 0004).
   - pkg:pypi/soxr
   - pkg:pypi/num2words
-  # NVIDIA's CUDA wheels of the optional bench group: proprietary (GitHub
+  # NVIDIA's CUDA wheels the server installs: proprietary (GitHub
   # reports NOASSERTION), installed locally and never redistributed (NOTICE).
   - pkg:pypi/nvidia-cublas-cu12
   - pkg:pypi/nvidia-cuda-nvrtc-cu12

@@ -13,6 +13,23 @@ dependencies = [
     "pydantic-settings>=2.16.0",
     "sqlalchemy[asyncio]>=2.1.4",
     "uvicorn>=0.54.0",
+    # Voice pipeline. Pinned to one minor version: Pipecat's API moves fast.
+    # Silero VAD and Smart Turn v3 ship in the base package; the `kokoro` extra
+    # is not used because kokoro-onnx pulls in GPL code (ADR 0004).
+    "pipecat-ai[webrtc,silero]>=1.15,<1.16",
+    "faster-whisper>=1.2.1",
+    # CUDA 12 user-space libraries for ctranslate2 (ADR 0002); no macOS wheels.
+    "nvidia-cublas-cu12>=12.9 ; sys_platform == 'linux' or sys_platform == 'win32'",
+    "nvidia-cudnn-cu12>=9.27 ; sys_platform == 'linux' or sys_platform == 'win32'",
+    "onnxruntime>=1.24.3",
+    # Kokoro G2P without extras: misaki[en] pulls in GPL packages (ADR 0004).
+    "misaki>=0.9.4",
+    "spacy>=3.8,<3.9",
+    "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
+    "num2words>=0.5.14",
+    "soundfile>=0.13",
+    "numpy>=2.0",
+    "huggingface-hub>=0.30",
 ]
 
 [build-system]
