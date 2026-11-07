@@ -115,6 +115,10 @@ bench-tts *args:
 bench-tts-container *args:
     uv run python -m scripts.bench.container --writable benchmarks/results scripts.bench.tts {{ args }}
 
+# Check that speech-to-text and each LLM fit on the GPU together (hard VRAM limit), and record RAM
+bench-memory *models:
+    uv run --group bench python -m scripts.bench.memory {{ models }}
+
 # Scan for secrets, audit workflows and check Python dependencies (ADR 0005)
 security:
     uv run pre-commit run gitleaks --all-files
