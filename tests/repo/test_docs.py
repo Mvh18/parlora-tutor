@@ -218,3 +218,20 @@ def test_docs_use_the_current_repository_name(repo_root: Path) -> None:
         if OLD_REPO.search(read(repo_root, name)):
             stale.append(name)
     assert not stale, f"links to the old Mvh18/parlora repository: {stale}"
+
+
+def test_benchmark_report_is_generated_from_the_committed_results(repo_root: Path) -> None:
+    from scripts.bench import report
+
+    expected = report.render(report.load(repo_root / "benchmarks" / "results"))
+    assert read(repo_root, "docs/benchmarks.md") == expected, "run `just bench-report`"
+
+
+def test_adr_0009_records_the_benchmark_decisions(repo_root: Path) -> None:
+    (adr,) = (repo_root / "docs" / "adr").glob("0009-*.md")
+    text = adr.read_text(encoding="utf-8")
+    for heading in ("## Context", "## Decision", "## Consequences"):
+        assert heading in text, f"ADR 0009 lacks {heading}"
+    linked = re.findall(r"\(\.\./\.\./(benchmarks/results/[^)]+\.json)\)", text)
+    assert linked, "ADR 0009 must link the result files it is based on"
+    assert all((repo_root / path).is_file() for path in linked)
