@@ -103,3 +103,18 @@ def test_load_settings_reads_a_dotenv_file(tmp_path: Path, clean_env: None) -> N
     settings = load_settings(env_file=env_file)
 
     assert settings.cors_origins == ["http://localhost:4000"]
+
+
+def test_tts_provider_defaults_to_the_cpu(clean_env: None) -> None:
+    assert Settings(_env_file=None).tts.provider == "cpu"
+
+
+def test_tts_provider_from_the_environment(
+    monkeypatch: pytest.MonkeyPatch, clean_env: None
+) -> None:
+    monkeypatch.setenv("PARLORA_TTS__PROVIDER", "cuda")
+    assert Settings(_env_file=None).tts.provider == "cuda"
+
+    monkeypatch.setenv("PARLORA_TTS__PROVIDER", "tpu")
+    with pytest.raises(SettingsError, match="PARLORA_TTS__PROVIDER"):
+        load_settings(env_file=None)
