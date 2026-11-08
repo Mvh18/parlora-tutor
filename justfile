@@ -107,11 +107,11 @@ bench-stt *args:
 bench-stt-container *args:
     uv run python -m scripts.bench.container --gpu --writable benchmarks/results scripts.bench.stt {{ args }}
 
-# Benchmark Kokoro text-to-speech natively on the CPU (OOV words silent without espeak-ng)
+# Benchmark Kokoro text-to-speech natively (`--provider cpu|cuda`; OOV words silent without espeak-ng)
 bench-tts *args:
     uv run --group bench python -m scripts.bench.tts {{ args }}
 
-# Benchmark Kokoro text-to-speech in the bench image (OOV words through espeak-ng)
+# Benchmark Kokoro text-to-speech in the bench image (`--provider cpu|cuda`; OOV words through espeak-ng)
 bench-tts-container *args:
     uv run python -m scripts.bench.container --writable benchmarks/results scripts.bench.tts {{ args }}
 

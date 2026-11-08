@@ -143,14 +143,14 @@ on the host; they never run in CI. Results are JSON files in
 [docs/benchmarks.md](docs/benchmarks.md) is generated from them. Decisions taken
 from the first round are in [ADR 0009](docs/adr/0009-phase-1-llm-and-vram-budget.md).
 
-| Command                          | What it does                                             |
-| -------------------------------- | -------------------------------------------------------- |
-| `uv run just bench-setup`        | Install the optional `bench` group, check GPU and Ollama |
-| `uv run just bench-llm [models]` | LLM through the host's Ollama                            |
-| `uv run just bench-stt`          | Speech-to-text natively (`-container` in Docker)         |
-| `uv run just bench-tts`          | Kokoro text-to-speech on the CPU (`-container` too)      |
-| `uv run just bench-memory`       | Hard VRAM check with STT and each LLM (after `just up`)  |
-| `uv run just bench`              | All of the above, then `bench-report`                    |
+| Command                          | What it does                                                     |
+| -------------------------------- | ---------------------------------------------------------------- |
+| `uv run just bench-setup`        | Install the optional `bench` group, check GPU and Ollama         |
+| `uv run just bench-llm [models]` | LLM through the host's Ollama                                    |
+| `uv run just bench-stt`          | Speech-to-text natively (`-container` in Docker)                 |
+| `uv run just bench-tts`          | Kokoro text-to-speech, `--provider cpu\|cuda` (`-container` too) |
+| `uv run just bench-memory`       | Hard VRAM check with STT and each LLM (after `just up`)          |
+| `uv run just bench`              | All of the above, then `bench-report`                            |
 
 ## Testing
 

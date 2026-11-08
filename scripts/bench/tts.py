@@ -1,14 +1,16 @@
-"""Text-to-speech benchmark: the minimal Kokoro runner on the CPU.
+"""Text-to-speech benchmark: the server's Kokoro adapter on the CPU or the GPU.
 
-The runner does not stream, so the time to first audio of a reply is the synthesis
-time of its first sentence. The benchmark synthesises a fixed set of short tutor
-replies, some with out-of-vocabulary words, and records per sentence the synthesis
-time, the real-time factor (synthesis time / audio duration) and the OOV words.
-The OOV mode is recorded: `cli` where an `espeak-ng` executable is on PATH (the
+The adapter synthesises each text chunk in one piece, so the time to first audio of
+a reply is the synthesis time of its first sentence. The benchmark synthesises a
+fixed set of short tutor replies, some with out-of-vocabulary words, and records per
+sentence the synthesis time, the real-time factor (synthesis time / audio duration)
+and the OOV words. The OOV mode is recorded: `cli` where an `espeak-ng` executable is on PATH (the
 bench image), `silent` elsewhere (native Windows), which is flagged as a warning
-because OOV words are then dropped.
+because OOV words are then dropped. `--provider` picks onnxruntime's CPU or CUDA
+provider; the providers onnxruntime actually used are recorded, and a CUDA run that
+fell back to the CPU is flagged. CUDA results get a `-cuda` variant suffix.
 
-Usage: python -m scripts.bench.tts [--runs N]
+Usage: python -m scripts.bench.tts [--provider cpu|cuda] [--runs N]
 """
 
 import argparse
@@ -43,21 +45,27 @@ SENTENCES = (
 )
 
 
+PROVIDERS = ("cpu", "cuda")
+ONNX_PROVIDER = {"cpu": "CPUExecutionProvider", "cuda": "CUDAExecutionProvider"}
+
+
 class Synthesiser(Protocol):
     oov_mode: str
+    providers: tuple[str, ...]
 
     def __call__(self, text: str) -> tuple[float, tuple[str, ...]]:
         """Synthesise `text`; return the audio duration in seconds and the OOV words."""
         ...
 
 
-def kokoro_synthesiser() -> Synthesiser:
+def kokoro_synthesiser(provider: str) -> Synthesiser:
     from scripts.bench.kokoro_runner import Kokoro
 
-    kokoro = Kokoro()
+    kokoro = Kokoro(provider="cuda" if provider == "cuda" else "cpu")
 
     class Run:
         oov_mode = kokoro.oov_mode
+        providers = kokoro.providers
 
         def __call__(self, text: str) -> tuple[float, tuple[str, ...]]:
             speech = kokoro.synthesize(text)
@@ -108,11 +116,12 @@ def measure(
         "first_audio_s": ColdWarm(cold, times).to_dict(),
         "rtf": ColdWarm(None, rtfs).to_dict(),
         "oov": {"mode": synthesise.oov_mode, "count": len(oov), "words": sorted(set(oov))},
+        "onnx_providers": list(synthesise.providers),
         "sentences": per_sentence,
     }
 
 
-def checks_for(measurements: dict[str, Any]) -> list[dict[str, Any]]:
+def checks_for(measurements: dict[str, Any], provider: str) -> list[dict[str, Any]]:
     first = measurements["first_audio_s"]["summary"]["p95"]
     rtf = measurements["rtf"]["summary"]["p95"]
     checks = [
@@ -126,6 +135,15 @@ def checks_for(measurements: dict[str, Any]) -> list[dict[str, Any]]:
             "status": "pass" if mode == "cli" else "warn",
             "value": mode,
             "detail": "silent: no espeak-ng on PATH, OOV words are dropped (ADR 0004)",
+        }
+    )
+    used = measurements["onnx_providers"][0] if measurements["onnx_providers"] else None
+    checks.append(
+        {
+            "name": "tts_provider",
+            "status": "pass" if used == ONNX_PROVIDER[provider] else "warn",
+            "value": used,
+            "detail": f"{provider} requested; onnxruntime ran on the first provider listed",
         }
     )
     return checks
@@ -142,9 +160,10 @@ def versions() -> dict[str, str | None]:
 
 
 def main(
-    argv: Sequence[str] | None = None, load: Callable[[], Synthesiser] = kokoro_synthesiser
+    argv: Sequence[str] | None = None, load: Callable[[str], Synthesiser] = kokoro_synthesiser
 ) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--provider", choices=PROVIDERS, default="cpu")
     parser.add_argument("--runs", type=int, default=DEFAULT_RUNS)
     parser.add_argument("--variant", choices=["native", "container"], default=detect_variant())
     parser.add_argument("--output-dir", type=Path, default=RESULTS_DIR)
@@ -152,25 +171,27 @@ def main(
     if args.runs < 1:
         parser.error("--runs must be at least 1")
 
-    print(f"tts: {args.variant}, {len(SENTENCES)} sentences x {args.runs} runs", flush=True)
-    measurements = measure(load, SENTENCES, args.runs)
+    variant = args.variant if args.provider == "cpu" else f"{args.variant}-{args.provider}"
+    print(f"tts: {variant}, {len(SENTENCES)} sentences x {args.runs} runs", flush=True)
+    measurements = measure(lambda: load(args.provider), SENTENCES, args.runs)
     result = build_result(
         component="tts",
-        variant=args.variant,
+        variant=variant,
         machine=collect_machine(),
         software={"python": platform.python_version(), **versions()},
         settings={
             "model": "kokoro-v1.0.onnx",
-            "provider": "CPUExecutionProvider",
+            "provider": args.provider,
+            "onnx_providers": measurements["onnx_providers"],
             "voice": "af_heart",
             "speed": 1.0,
             "runs_per_sentence": args.runs,
             "oov_mode": measurements["oov"]["mode"],
-            "first_audio_definition": "synthesis time of one sentence (the runner does not stream)",
+            "first_audio_definition": "synthesis time of one sentence (one chunk per call)",
             "budget_statistic": "p95",
         },
         measurements=measurements,
-        checks=checks_for(measurements),
+        checks=checks_for(measurements, args.provider),
     )
     path = write_result(result, args.output_dir)
     first = measurements["first_audio_s"]["summary"]
