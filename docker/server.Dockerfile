@@ -93,6 +93,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 FROM base AS runtime
 COPY --from=build /opt/venv /opt/venv
+# System prompts are content, read at run time (parlora_server.voice.prompts).
+COPY prompts /app/prompts
 USER parlora
 EXPOSE 8000
 HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=3 \

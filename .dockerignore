@@ -5,6 +5,7 @@
 !uv.lock
 !packages/core/
 !apps/server/
+!prompts/
 
 **/__pycache__/
 **/*.py[cod]
