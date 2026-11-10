@@ -47,6 +47,17 @@ exclude-newer = "7 days"
 # for the patched package to the day of the fix and drop the entry once the
 # release is older than a week.
 exclude-newer-package = { certifi = "2026-10-21T00:00:00Z", virtualenv = "2026-10-21T00:00:00Z", filelock = "2026-10-18T00:00:00Z" }
+# onnxruntime and onnxruntime-gpu install the same `onnxruntime` module, so the
+# CPU build that Pipecat and faster-whisper ask for is kept only where the server
+# cannot use the GPU build (macOS); elsewhere onnxruntime-gpu provides it.
+override-dependencies = ["onnxruntime>=1.24.3 ; sys_platform == 'darwin'"]
+# The machines the server runs on: Windows natively and Linux in Docker. Some
+# NVIDIA wheels skip a platform in some releases; resolve versions that have
+# wheels for both.
+required-environments = [
+    "sys_platform == 'win32' and platform_machine == 'AMD64'",
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
 
 [tool.uv.workspace]
 members = ["packages/*", "apps/*"]
