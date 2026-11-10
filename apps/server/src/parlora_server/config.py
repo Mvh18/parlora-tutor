@@ -71,8 +71,10 @@ class LlmSettings(BaseModel):
 class TtsSettings(BaseModel):
     model_config = ConfigDict(frozen=True, hide_input_in_errors=True)
 
+    # cuda by measurement: first audio p95 about 0.4 s against about 1.9 s on the CPU
+    # (benchmarks/results, RTX 4060).
     provider: Literal["cpu", "cuda"] = Field(
-        default="cpu",
+        default="cuda",
         description=(
             "onnxruntime provider for Kokoro text-to-speech; cuda falls back to the CPU "
             "with a warning when onnxruntime cannot use it."
