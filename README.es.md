@@ -64,7 +64,7 @@ flowchart LR
     api --> core
     voice -.-> core
     api --> db
-    voice -. "API compatible con OpenAI" .-> llm
+    voice -. "API nativa de chat" .-> llm
 ```
 
 Las líneas discontinuas están planificadas. El núcleo de dominio no depende

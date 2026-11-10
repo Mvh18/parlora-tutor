@@ -59,13 +59,52 @@ class DatabaseSettings(BaseModel):
         return value
 
 
+class SttSettings(BaseModel):
+    model_config = ConfigDict(frozen=True, hide_input_in_errors=True)
+
+    # ADR 0002 and ADR 0009: about 0.4 s for a 3-9 s utterance on the RTX 4060.
+    model: str = Field(
+        default="large-v3-turbo",
+        min_length=1,
+        description="faster-whisper model name, downloaded into the Hugging Face cache.",
+    )
+    device: Literal["cuda", "cpu"] = Field(
+        default="cuda", description="Device for speech-to-text; calls need cuda for latency."
+    )
+    compute_type: Literal["int8", "int8_float16", "float16", "float32"] = Field(
+        default="int8", description="CTranslate2 compute type of the speech-to-text model."
+    )
+    beam_size: int = Field(default=5, ge=1, le=10, description="Beam size of the decoder.")
+
+
 class LlmSettings(BaseModel):
     model_config = ConfigDict(frozen=True, hide_input_in_errors=True)
 
+    # Ollama's native API, not its OpenAI-compatible /v1 endpoint, which hides the
+    # model's load and evaluation timings.
     base_url: HttpUrl = Field(
-        default=HttpUrl("http://host.docker.internal:11434/v1"),
-        description="OpenAI-compatible endpoint of the language model (Ollama on the host).",
+        default=HttpUrl("http://host.docker.internal:11434"),
+        description="Base URL of Ollama's native API (Ollama on the host).",
     )
+    model: str = Field(
+        default="qwen3:4b-instruct-2507-q4_K_M",
+        min_length=1,
+        description="Ollama model of the conversation partner.",
+    )
+    num_ctx: int = Field(
+        default=4096, ge=512, description="Context window, in tokens, Ollama loads the model with."
+    )
+    keep_alive: int = Field(
+        default=-1,
+        description="Seconds Ollama keeps the model loaded after a request; -1 keeps it resident.",
+    )
+
+    @field_validator("base_url")
+    @classmethod
+    def _http(cls, value: HttpUrl) -> HttpUrl:
+        if value.scheme not in ("http", "https"):
+            raise ValueError("must be an http(s) URL")
+        return value
 
 
 class TtsSettings(BaseModel):
@@ -94,6 +133,7 @@ class Settings(BaseSettings):
     )
 
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
+    stt: SttSettings = Field(default_factory=SttSettings)
     llm: LlmSettings = Field(default_factory=LlmSettings)
     tts: TtsSettings = Field(default_factory=TtsSettings)
     cors_origins: list[str] = Field(

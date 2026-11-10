@@ -71,7 +71,7 @@ services:
               capabilities: [gpu]
 
   # Optional containerised Ollama: `docker compose --profile ollama up`, then set
-  # PARLORA_LLM__BASE_URL=http://ollama:11434/v1. Stop a native Ollama first: both use 11434.
+  # PARLORA_LLM__BASE_URL=http://ollama:11434. Stop a native Ollama first: both use 11434.
   ollama:
     image: ollama/ollama:0.40.13@sha256:b2f0122c476bc9fe7ce679d8bb4bd555351e25e2554eefb156f61cb0a89cf429
     profiles: [ollama]
