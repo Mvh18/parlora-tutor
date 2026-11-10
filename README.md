@@ -62,7 +62,7 @@ flowchart LR
     api --> core
     voice -.-> core
     api --> db
-    voice -. "OpenAI-compatible API" .-> llm
+    voice -. "native chat API" .-> llm
 ```
 
 Dashed lines are planned. The domain core is framework-free and the server is

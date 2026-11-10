@@ -27,6 +27,7 @@ from importlib import metadata
 from pathlib import Path
 from typing import Any, Protocol
 
+from parlora_server.adapters.cuda import add_cuda_dll_directories
 from scripts.bench.common.budgets import BUDGETS, evaluate_budget
 from scripts.bench.common.results import RESULTS_DIR, write_result
 from scripts.bench.common.schema import build_result
@@ -68,20 +69,6 @@ def load_fixtures(directory: Path = FIXTURES) -> list[Fixture]:
         fixture = Fixture(entry["id"], entry["cefr"], entry["text"], audio, len(audio) / rate)
         fixtures.append(fixture)
     return fixtures
-
-
-def add_cuda_dll_directories() -> list[str]:
-    """On Windows, let ctranslate2 find the cuBLAS/cuDNN DLLs of the NVIDIA wheels."""
-    added: list[str] = []
-    if sys.platform == "win32":
-        import site
-
-        for base in site.getsitepackages():
-            for bin_dir in sorted(Path(base, "nvidia").glob("*/bin")):
-                os.add_dll_directory(str(bin_dir))
-                os.environ["PATH"] = f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"
-                added.append(bin_dir.parent.name)
-    return added
 
 
 def whisper_transcriber() -> Transcriber:

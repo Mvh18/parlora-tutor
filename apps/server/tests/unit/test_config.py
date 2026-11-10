@@ -17,7 +17,7 @@ def test_defaults_target_the_local_stack(clean_env: None) -> None:
     url = settings.database.url.get_secret_value()
     assert url.startswith("postgresql+asyncpg://")
     assert ":5433/" in url, "the local stack avoids the host's default PostgreSQL port"
-    assert str(settings.llm.base_url) == "http://host.docker.internal:11434/v1"
+    assert str(settings.llm.base_url) == "http://host.docker.internal:11434/"
     assert settings.cors_origins == ["http://localhost:3000"]
 
 
@@ -25,12 +25,12 @@ def test_nested_values_come_from_double_underscore_variables(
     monkeypatch: pytest.MonkeyPatch, clean_env: None
 ) -> None:
     monkeypatch.setenv("PARLORA_DATABASE__URL", SECRET_URL)
-    monkeypatch.setenv("PARLORA_LLM__BASE_URL", "http://127.0.0.1:11434/v1")
+    monkeypatch.setenv("PARLORA_LLM__BASE_URL", "http://127.0.0.1:11434")
 
     settings = Settings(_env_file=None)
 
     assert settings.database.url.get_secret_value() == SECRET_URL
-    assert str(settings.llm.base_url) == "http://127.0.0.1:11434/v1"
+    assert str(settings.llm.base_url) == "http://127.0.0.1:11434/"
 
 
 def test_database_url_is_never_shown_in_reprs(
@@ -117,4 +117,38 @@ def test_tts_provider_from_the_environment(
 
     monkeypatch.setenv("PARLORA_TTS__PROVIDER", "tpu")
     with pytest.raises(SettingsError, match="PARLORA_TTS__PROVIDER"):
+        load_settings(env_file=None)
+
+
+def test_voice_models_default_to_the_measured_ones(clean_env: None) -> None:
+    settings = Settings(_env_file=None)
+
+    assert (settings.stt.model, settings.stt.compute_type, settings.stt.device) == (
+        "large-v3-turbo",
+        "int8",
+        "cuda",
+    )
+    assert settings.stt.beam_size == 5
+    assert settings.llm.model == "qwen3:4b-instruct-2507-q4_K_M"
+    assert settings.llm.num_ctx == 4096
+    assert settings.llm.keep_alive == -1, "the model stays resident between turns"
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("PARLORA_STT__DEVICE", "tpu"),
+        ("PARLORA_STT__COMPUTE_TYPE", "int3"),
+        ("PARLORA_STT__BEAM_SIZE", "0"),
+        ("PARLORA_LLM__MODEL", ""),
+        ("PARLORA_LLM__NUM_CTX", "128"),
+        ("PARLORA_LLM__BASE_URL", "ftp://localhost:11434"),
+    ],
+)
+def test_invalid_voice_settings_fail_fast(
+    monkeypatch: pytest.MonkeyPatch, clean_env: None, name: str, value: str
+) -> None:
+    monkeypatch.setenv(name, value)
+
+    with pytest.raises(SettingsError, match=name):
         load_settings(env_file=None)
