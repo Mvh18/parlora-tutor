@@ -47,6 +47,17 @@ exclude-newer = "7 days"
 # for the patched package to the day of the fix and drop the entry once the
 # release is older than a week.
 exclude-newer-package = { certifi = "2026-10-21T00:00:00Z", virtualenv = "2026-10-21T00:00:00Z", filelock = "2026-10-18T00:00:00Z" }
+# onnxruntime and onnxruntime-gpu install the same `onnxruntime` module, so the
+# CPU build that Pipecat and faster-whisper ask for is kept only where the server
+# cannot use the GPU build (macOS); elsewhere onnxruntime-gpu provides it.
+override-dependencies = ["onnxruntime>=1.24.3 ; sys_platform == 'darwin'"]
+# The machines the server runs on: Windows natively and Linux in Docker. Some
+# NVIDIA wheels skip a platform in some releases; resolve versions that have
+# wheels for both.
+required-environments = [
+    "sys_platform == 'win32' and platform_machine == 'AMD64'",
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
 
 [tool.uv.workspace]
 members = ["packages/*", "apps/*"]
@@ -86,8 +97,8 @@ select = [
 # Dev scripts run tools with fixed arguments built in the script itself.
 "scripts/**" = ["S603"]
 # IPA symbols are meant, not look-alikes of ASCII letters.
-"scripts/bench/kokoro_runner.py" = ["S603", "RUF001"]
-"tests/bench/test_kokoro_runner.py" = ["S101", "S603", "S607", "RUF001"]
+"apps/server/src/parlora_server/adapters/tts/kokoro.py" = ["S603", "RUF001"]
+"apps/server/tests/unit/test_kokoro_tts.py" = ["S101", "RUF001"]
 # Domain errors are named after the rule they enforce, as the domain-core spec does.
 "packages/core/src/parlora_core/errors.py" = ["N818"]
 

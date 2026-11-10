@@ -24,7 +24,7 @@ updates:
           - faster-whisper
           - ctranslate2
           - nvidia-*
-          - onnxruntime
+          - onnxruntime*
           - misaki
           - spacy
           - en-core-web-sm

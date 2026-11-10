@@ -149,14 +149,14 @@ en `benchmarks/results/` sin datos personales, y
 decisiones de la primera ronda están en
 [ADR 0009](docs/adr/0009-phase-1-llm-and-vram-budget.md).
 
-| Comando                           | Qué hace                                                     |
-| --------------------------------- | ------------------------------------------------------------ |
-| `uv run just bench-setup`         | Instala el grupo opcional `bench` y comprueba GPU y Ollama   |
-| `uv run just bench-llm [modelos]` | LLM a través del Ollama del host                             |
-| `uv run just bench-stt`           | Reconocimiento de voz nativo (`-container` en Docker)        |
-| `uv run just bench-tts`           | Síntesis con Kokoro en la CPU (también `-container`)         |
-| `uv run just bench-memory`        | Control estricto de VRAM con STT y cada LLM (tras `just up`) |
-| `uv run just bench`               | Todo lo anterior y después `bench-report`                    |
+| Comando                           | Qué hace                                                           |
+| --------------------------------- | ------------------------------------------------------------------ |
+| `uv run just bench-setup`         | Instala el grupo opcional `bench` y comprueba GPU y Ollama         |
+| `uv run just bench-llm [modelos]` | LLM a través del Ollama del host                                   |
+| `uv run just bench-stt`           | Reconocimiento de voz nativo (`-container` en Docker)              |
+| `uv run just bench-tts`           | Síntesis con Kokoro, `--provider cpu\|cuda` (también `-container`) |
+| `uv run just bench-memory`        | Control estricto de VRAM con STT y cada LLM (tras `just up`)       |
+| `uv run just bench`               | Todo lo anterior y después `bench-report`                          |
 
 ## Pruebas
 

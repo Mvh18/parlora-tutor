@@ -7,6 +7,7 @@ the application at startup with a message naming the variable, never its value.
 """
 
 from pathlib import Path
+from typing import Literal
 from urllib.parse import urlsplit
 
 from pydantic import (
@@ -67,6 +68,20 @@ class LlmSettings(BaseModel):
     )
 
 
+class TtsSettings(BaseModel):
+    model_config = ConfigDict(frozen=True, hide_input_in_errors=True)
+
+    # cuda by measurement: first audio p95 about 0.4 s against about 1.9 s on the CPU
+    # (benchmarks/results, RTX 4060).
+    provider: Literal["cpu", "cuda"] = Field(
+        default="cuda",
+        description=(
+            "onnxruntime provider for Kokoro text-to-speech; cuda falls back to the CPU "
+            "with a warning when onnxruntime cannot use it."
+        ),
+    )
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix=ENV_PREFIX,
@@ -80,6 +95,7 @@ class Settings(BaseSettings):
 
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
     llm: LlmSettings = Field(default_factory=LlmSettings)
+    tts: TtsSettings = Field(default_factory=TtsSettings)
     cors_origins: list[str] = Field(
         default_factory=lambda: ["http://localhost:3000"],
         description="Browser origins allowed to call the API (JSON list, no wildcard).",

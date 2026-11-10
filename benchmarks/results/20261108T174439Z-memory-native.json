@@ -1,0 +1,178 @@
+{
+  "schema_version": 1,
+  "component": "memory",
+  "variant": "native",
+  "created_at": "2026-11-08T17:44:39Z",
+  "machine": {
+    "os": "Windows",
+    "os_version": "10.0.26200",
+    "cpu": "AMD Ryzen 5 5600G with Radeon Graphics",
+    "ram_total_mb": 16252,
+    "gpu": "NVIDIA GeForce RTX 4060",
+    "vram_total_mb": 8188,
+    "driver": "616.56",
+    "cuda_runtime": null,
+    "docker_engine": null
+  },
+  "software": {
+    "python": "3.12.15",
+    "ollama": "0.40.15",
+    "faster-whisper": "1.2.1",
+    "ctranslate2": "4.8.4",
+    "nvidia-cublas-cu12": "12.9.2.10",
+    "nvidia-cudnn-cu12": "9.27.0.42",
+    "nvidia-cuda-nvrtc-cu12": "12.9.86",
+    "vram_sampler": "nvml"
+  },
+  "settings": {
+    "stt": "faster-whisper large-v3-turbo int8 cuda, one transcription",
+    "tts": "kokoro-v1.0.onnx, provider cuda, one sentence",
+    "tts_onnx_providers": [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+    ],
+    "llm_options": {
+      "num_ctx": 4096
+    },
+    "limit_env": "PARLORA_BENCH_VRAM_LIMIT_MB",
+    "rule": "used VRAM minus baseline, STT, Kokoro and one LLM loaded together"
+  },
+  "measurements": {
+    "vram_mb": {
+      "baseline": 1016,
+      "stt_above_baseline": 1227,
+      "limit": 7680,
+      "tts_above_stt": 533
+    },
+    "models": [
+      {
+        "model": "qwen3:4b-instruct-2507-q4_K_M",
+        "used_mb": 5863,
+        "above_baseline_mb": 4847,
+        "llm_mb": 3087,
+        "ollama_size_vram_mb": 3032,
+        "status": "pass"
+      },
+      {
+        "model": "gemma3:4b",
+        "used_mb": 6465,
+        "above_baseline_mb": 5449,
+        "llm_mb": 3689,
+        "ollama_size_vram_mb": 2748,
+        "status": "pass"
+      },
+      {
+        "model": "qwen3:8b",
+        "used_mb": 8086,
+        "above_baseline_mb": 7070,
+        "llm_mb": 5310,
+        "ollama_size_vram_mb": 5327,
+        "status": "pass"
+      }
+    ],
+    "gpu_processes": [
+      {
+        "name": "ShellHost.exe",
+        "used_mb": null
+      },
+      {
+        "name": "CrossDeviceResume.exe",
+        "used_mb": null
+      },
+      {
+        "name": "explorer.exe",
+        "used_mb": null
+      },
+      {
+        "name": "ApplicationFrameHost.exe",
+        "used_mb": null
+      },
+      {
+        "name": "StartMenuExperienceHost.exe",
+        "used_mb": null
+      },
+      {
+        "name": "SearchHost.exe",
+        "used_mb": null
+      },
+      {
+        "name": "Microsoft.Notes.exe",
+        "used_mb": null
+      },
+      {
+        "name": "LockApp.exe",
+        "used_mb": null
+      },
+      {
+        "name": "msedgewebview2.exe",
+        "used_mb": null
+      },
+      {
+        "name": "NVIDIA Overlay.exe",
+        "used_mb": null
+      },
+      {
+        "name": "NVIDIA Overlay.exe",
+        "used_mb": null
+      },
+      {
+        "name": "TextInputHost.exe",
+        "used_mb": null
+      },
+      {
+        "name": "Code.exe",
+        "used_mb": null
+      },
+      {
+        "name": "chrome.exe",
+        "used_mb": null
+      },
+      {
+        "name": "chrome.exe",
+        "used_mb": null
+      },
+      {
+        "name": "ShellExperienceHost.exe",
+        "used_mb": null
+      },
+      {
+        "name": "Docker Desktop.exe",
+        "used_mb": null
+      },
+      {
+        "name": "python.exe",
+        "used_mb": null
+      }
+    ],
+    "ram_mb": {
+      "compose_stack": {},
+      "ollama": 35.7
+    }
+  },
+  "checks": [
+    {
+      "name": "vram_stt_plus_qwen3:4b-instruct-2507-q4_K_M",
+      "status": "pass",
+      "value": 4847,
+      "limit": 7680,
+      "unit": "MB",
+      "detail": "used 5863 MB minus baseline 1016 MB; hard limit PARLORA_BENCH_VRAM_LIMIT_MB"
+    },
+    {
+      "name": "vram_stt_plus_gemma3:4b",
+      "status": "pass",
+      "value": 5449,
+      "limit": 7680,
+      "unit": "MB",
+      "detail": "used 6465 MB minus baseline 1016 MB; hard limit PARLORA_BENCH_VRAM_LIMIT_MB"
+    },
+    {
+      "name": "vram_stt_plus_qwen3:8b",
+      "status": "pass",
+      "value": 7070,
+      "limit": 7680,
+      "unit": "MB",
+      "detail": "used 8086 MB minus baseline 1016 MB; hard limit PARLORA_BENCH_VRAM_LIMIT_MB"
+    }
+  ]
+}

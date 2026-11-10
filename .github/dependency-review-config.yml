@@ -39,6 +39,14 @@ allow-dependencies-licenses:
   - pkg:pypi/nvidia-cublas-cu12
   - pkg:pypi/nvidia-cuda-nvrtc-cu12
   - pkg:pypi/nvidia-cudnn-cu12
+  # CUDA 13 wheels for onnxruntime-gpu (Kokoro on the GPU).
+  - pkg:pypi/nvidia-cublas
+  - pkg:pypi/nvidia-cuda-nvrtc
+  - pkg:pypi/nvidia-cuda-runtime
+  - pkg:pypi/nvidia-cudnn-cu13
+  - pkg:pypi/nvidia-cufft
+  - pkg:pypi/nvidia-curand
+  - pkg:pypi/nvidia-nvjitlink
   # Permissive, but reported as compound expressions outside the list above:
   # protobuf is BSD-3-Clause plus Google's BSD-style protobuf notice, and regex
   # is Apache-2.0 plus CNRI-Python code from CPython's sre engine. llvmlite (via

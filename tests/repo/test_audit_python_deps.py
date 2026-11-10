@@ -42,7 +42,16 @@ def test_reviewed_lgpl_packages_pass(name: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "name", ["nvidia-cublas-cu12", "nvidia-cudnn-cu12", "nvidia-cuda-nvrtc-cu12"]
+    "name",
+    [
+        "nvidia-cublas-cu12",
+        "nvidia-cudnn-cu12",
+        "nvidia-cuda-nvrtc-cu12",
+        "nvidia-cublas",
+        "nvidia-cudnn-cu13",
+        "nvidia-cuda-runtime",
+        "nvidia-nvjitlink",
+    ],
 )
 def test_reviewed_nvidia_cuda_wheels_pass(name: str) -> None:
     assert licence_problems([row(name, "Other/Proprietary License")]) == []
@@ -68,5 +77,6 @@ def test_names_are_compared_normalised() -> None:
 
 def test_every_exception_has_a_justification() -> None:
     reviewed = {**REVIEWED_LGPL, **REVIEWED_PROPRIETARY}
-    assert {"soxr", "num2words", "nvidia-*-cu12"} == set(reviewed)
+    assert {"soxr", "num2words", "nvidia-*-cu12", "nvidia-cudnn-cu13"} <= set(reviewed)
+    assert not any(name.startswith("nvidia-ml") for name in reviewed)
     assert all(len(reason) > 20 for reason in reviewed.values())

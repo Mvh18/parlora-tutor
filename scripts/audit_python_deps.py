@@ -35,10 +35,27 @@ REVIEWED_LGPL = {
     "G2P needs it (ADR 0004)",
 }
 # Matched as shell-style patterns, and excused only from the proprietary rule.
+_CUDA_13 = (
+    "NVIDIA's CUDA 13 user-space libraries that onnxruntime-gpu loads to run Kokoro "
+    "on the GPU; installed locally with the server and never redistributed, because "
+    "no image is published"
+)
 REVIEWED_PROPRIETARY = {
     "nvidia-*-cu12": "NVIDIA's CUDA user-space libraries that ctranslate2 loads (ADR "
-    "0002); installed locally by the optional bench group and never redistributed, "
-    "because no image is published",
+    "0002); installed locally with the server and never redistributed, because no "
+    "image is published",
+    **dict.fromkeys(
+        (
+            "nvidia-cublas",
+            "nvidia-cuda-nvrtc",
+            "nvidia-cuda-runtime",
+            "nvidia-cudnn-cu13",
+            "nvidia-cufft",
+            "nvidia-curand",
+            "nvidia-nvjitlink",
+        ),
+        _CUDA_13,
+    ),
 }
 
 

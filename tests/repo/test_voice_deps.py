@@ -16,7 +16,7 @@ VOICE_PACKAGES = {
     "faster-whisper",
     "nvidia-cublas-cu12",
     "nvidia-cudnn-cu12",
-    "onnxruntime",
+    "onnxruntime-gpu",
     "misaki",
     "spacy",
     "en-core-web-sm",
@@ -164,3 +164,20 @@ def test_dependabot_groups_voice_updates_apart(repo_root: Path) -> None:
     patterns = uv["groups"]["voice"]["patterns"]
     for name in VOICE_PACKAGES | BENCH_ONLY_PACKAGES:
         assert any(re.fullmatch(p.replace("*", ".*"), name) for p in patterns), name
+
+
+def test_kokoro_runs_on_the_gpu_build_of_onnxruntime(repo_root: Path) -> None:
+    requirements = server_requirements(repo_root)
+    gpu = requirements["onnxruntime-gpu"]
+    assert "cuda" in gpu, "onnxruntime-gpu needs its CUDA wheels"
+    assert "cudnn" in gpu, "onnxruntime-gpu needs its cuDNN wheel"
+    assert "darwin" in requirements["onnxruntime"], "the CPU build is for macOS only"
+
+
+def test_the_cpu_onnxruntime_is_overridden_where_the_gpu_build_runs(repo_root: Path) -> None:
+    # Both builds install the same `onnxruntime` module; only one may be present.
+    uv = toml(repo_root / "pyproject.toml")["tool"]["uv"]
+    overrides = {requirement_name(r): r for r in uv["override-dependencies"]}
+    assert "sys_platform == 'darwin'" in overrides["onnxruntime"]
+    locked = {p["name"] for p in toml(repo_root / "uv.lock")["package"]}
+    assert "onnxruntime-gpu" in locked

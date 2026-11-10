@@ -26,8 +26,9 @@ DEFINITIONS = """\
   closest ranks (NumPy's default).
 - **Time to first token (TTFT).** Measured on the client, warm runs only: from
   sending the request to Ollama's native API to the first chunk with text.
-- **Time to first audio.** The Kokoro runner does not stream, so it is the
-  synthesis time of one sentence of a reply.
+- **Time to first audio.** Kokoro synthesises each text chunk in one piece, so
+  it is the synthesis time of one sentence of a reply. Variants ending in
+  `-cuda` ran on onnxruntime's CUDA provider, the others on the CPU.
 - **Real-time factor (RTF).** Processing time divided by audio duration; below
   1.0 is faster than real time.
 - **Word error rate (WER).** On synthetic speech (the committed Kokoro fixtures)
@@ -150,16 +151,20 @@ def _memory(entries: Sequence[tuple[str, Mapping[str, Any]]]) -> list[str]:
     for name, r in entries:
         m = r["measurements"]
         vram = m["vram_mb"]
+        tts = vram.get("tts_above_stt")
+        kokoro = "" if tts is None else f", Kokoro adds {_mb(tts)}"
         lines += [
             f"Baseline {_mb(vram['baseline'])}, speech-to-text adds "
-            f"{_mb(vram['stt_above_baseline'])}, limit {_mb(vram['limit'])} ({_link(name)}).",
+            f"{_mb(vram['stt_above_baseline'])}{kokoro}, limit {_mb(vram['limit'])} "
+            f"({_link(name)}).",
             "",
         ]
         rows = [
             [f"`{x['model']}`", _mb(x["above_baseline_mb"]), _mb(x["used_mb"]), ICONS[x["status"]]]
             for x in m["models"]
         ]
-        lines += _table(["Model", "STT + LLM above baseline", "Total used", "Within limit"], rows)
+        header = ["Model", "Speech + LLM above baseline", "Total used", "Within limit"]
+        lines += _table(header, rows)
         ram = m.get("ram_mb", {})
         stack = ram.get("compose_stack", {})
         if stack or ram.get("ollama") is not None:
@@ -175,8 +180,8 @@ def _memory(entries: Sequence[tuple[str, Mapping[str, Any]]]) -> list[str]:
 SECTIONS = {
     "llm": ("LLM (host Ollama)", _llm),
     "stt": ("Speech-to-text (faster-whisper large-v3-turbo, int8, CUDA)", _stt),
-    "tts": ("Text-to-speech (Kokoro ONNX on the CPU)", _tts),
-    "memory": ("Memory: speech-to-text and each LLM on the GPU together", _memory),
+    "tts": ("Text-to-speech (Kokoro ONNX on the CPU or CUDA)", _tts),
+    "memory": ("Memory: the speech models and each LLM on the GPU together", _memory),
 }
 
 
