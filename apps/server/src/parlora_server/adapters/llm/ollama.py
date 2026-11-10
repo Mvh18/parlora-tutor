@@ -66,7 +66,12 @@ class OllamaLanguageModel:
         async with self._capabilities_lock:
             if self._capabilities is None:
                 response = await self._send("POST", "/api/show", {"model": self.model})
-                found = response.json().get("capabilities") or []
+                try:
+                    found = response.json().get("capabilities") or []
+                except (ValueError, AttributeError):
+                    raise LanguageModelError(
+                        f"{self.model}: Ollama's model details are not a JSON object"
+                    ) from None
                 self._capabilities = frozenset(str(c) for c in found)
             return self._capabilities
 
@@ -92,13 +97,15 @@ class OllamaLanguageModel:
                     if not line.strip():
                         continue
                     chunk = self._decode(line)
-                    text = chunk.get("message", {}).get("content") or ""
+                    message = chunk.get("message")
+                    text = message.get("content") if isinstance(message, Mapping) else None
                     if text:
                         yield str(text)
                     if chunk.get("done"):
                         done = True
                         break
         except httpx2.HTTPError as error:
+            # Includes a connection lost or a read timeout in the middle of a reply.
             raise self._unreachable(error) from error
         if not done:
             raise LanguageModelError(f"{self.model}: the reply stream ended before it was done")

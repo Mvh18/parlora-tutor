@@ -99,13 +99,6 @@ class LlmSettings(BaseModel):
         description="Seconds Ollama keeps the model loaded after a request; -1 keeps it resident.",
     )
 
-    @field_validator("base_url")
-    @classmethod
-    def _http(cls, value: HttpUrl) -> HttpUrl:
-        if value.scheme not in ("http", "https"):
-            raise ValueError("must be an http(s) URL")
-        return value
-
 
 class TtsSettings(BaseModel):
     model_config = ConfigDict(frozen=True, hide_input_in_errors=True)

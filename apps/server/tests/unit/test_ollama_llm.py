@@ -2,7 +2,7 @@
 
 import asyncio
 import json
-from collections.abc import Callable, Sequence
+from collections.abc import AsyncIterator, Callable, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -187,6 +187,64 @@ def test_errors_never_carry_the_conversation() -> None:
         reply(adapter(FakeOllama(chat=stream)))
 
     assert "vegetables" not in str(excinfo.value)
+
+
+def test_blank_lines_and_messageless_chunks_are_skipped() -> None:
+    stream = b"\n".join(
+        [
+            b"",
+            b'{"message":null,"done":false}',
+            b'{"done":false}',
+            b'{"message":{"role":"assistant","content":"Hi!"},"done":false}',
+            b"   ",
+            b'{"message":{"role":"assistant","content":""},"done":true}',
+        ]
+    )
+
+    assert reply(adapter(FakeOllama(chat=stream))) == ["Hi!"]
+
+
+def test_a_chunk_that_is_not_an_object_is_a_domain_error() -> None:
+    with pytest.raises(LanguageModelError, match="not an object"):
+        reply(adapter(FakeOllama(chat=b'["Hi"]\n')))
+
+
+@pytest.mark.parametrize("body", [b"<html>bad gateway</html>", b'["not", "an", "object"]'])
+def test_an_http_error_without_a_json_message_still_names_the_status(body: bytes) -> None:
+    with pytest.raises(LanguageModelError, match="502: no error message"):
+        reply(adapter(FakeOllama(chat=body, chat_status=502)))
+
+
+@pytest.mark.parametrize("body", [b"<html>proxy</html>", b'["completion"]'])
+def test_unreadable_model_details_are_a_domain_error(body: bytes) -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, content=body)
+
+    with pytest.raises(LanguageModelError, match="model details"):
+        reply(adapter(handler))
+
+
+def test_a_connection_lost_mid_reply_is_a_domain_error() -> None:
+    class Dropping(httpx2.AsyncByteStream):
+        async def __aiter__(self) -> AsyncIterator[bytes]:
+            yield b'{"message":{"role":"assistant","content":"Hi"},"done":false}\n'
+            raise httpx2.ReadError("connection reset")
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        if request.url.path == "/api/show":
+            return httpx2.Response(200, json={"capabilities": []})
+        return httpx2.Response(200, stream=Dropping())
+
+    model = adapter(handler)
+
+    async def collect(into: list[str]) -> None:
+        async for chunk in model.stream_reply(MESSAGES):
+            into.append(chunk)
+
+    received: list[str] = []
+    with pytest.raises(LanguageModelError, match="not answering"):
+        asyncio.run(collect(received))
+    assert received == ["Hi"], "text already streamed is not taken back"
 
 
 def test_load_builds_the_adapter_from_the_settings() -> None:
