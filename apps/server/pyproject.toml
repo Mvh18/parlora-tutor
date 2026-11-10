@@ -35,6 +35,8 @@ dependencies = [
     "soundfile>=0.13",
     "numpy>=2.0",
     "huggingface-hub>=0.30",
+    # HTTP client of the Ollama adapter (already in the lock through huggingface-hub).
+    "httpx2>=2.13.1",
 ]
 
 [build-system]

@@ -15,6 +15,7 @@ pytestmark = pytest.mark.unit
         errors.InvalidLearnerRef,
         errors.InvalidSessionSettings,
         errors.InvalidAudio,
+        errors.LanguageModelError,
     ],
 )
 def test_every_error_is_a_domain_error(error: type[errors.DomainError]) -> None:
@@ -42,3 +43,8 @@ def test_unsupported_language_is_a_lookup_error() -> None:
 
 def test_domain_error_is_not_a_builtin_value_error() -> None:
     assert not issubclass(errors.DomainError, ValueError)
+
+
+def test_language_model_error_is_a_runtime_error() -> None:
+    assert issubclass(errors.LanguageModelError, RuntimeError)
+    assert not issubclass(errors.LanguageModelError, ValueError)

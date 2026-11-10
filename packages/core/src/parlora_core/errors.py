@@ -37,3 +37,7 @@ class InvalidSessionSettings(DomainError, ValueError):
 
 class InvalidAudio(DomainError, ValueError):
     """Audio or a transcript does not have a valid shape."""
+
+
+class LanguageModelError(DomainError, RuntimeError):
+    """The language model could not be reached or failed while writing a reply."""
