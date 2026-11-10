@@ -20,10 +20,16 @@ def add_dll_directory(path: str) -> None:
     os.add_dll_directory(path)  # type: ignore[attr-defined,unused-ignore]  # Windows only
 
 
+def on_windows() -> bool:
+    # A call, not an inline check: mypy would mark the Windows branch unreachable
+    # when it type-checks on Linux.
+    return sys.platform == "win32"
+
+
 def add_cuda_dll_directories() -> list[str]:
     """On Windows, register every `nvidia/*/bin` directory; returns the library names."""
     added: list[str] = []
-    if sys.platform != "win32":
+    if not on_windows():
         return added
     for base in site_packages():
         for bin_dir in sorted(Path(base, "nvidia").glob("*/bin")):
