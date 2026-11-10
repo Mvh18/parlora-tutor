@@ -59,6 +59,49 @@ class DatabaseSettings(BaseModel):
         return value
 
 
+class VoiceSettings(BaseModel):
+    model_config = ConfigDict(frozen=True, hide_input_in_errors=True)
+
+    enabled: bool = Field(
+        default=True,
+        description=(
+            "Load the speech models and accept calls; false (no GPU, CI) reports the voice "
+            "checks as disabled."
+        ),
+    )
+
+
+class VadSettings(BaseModel):
+    """Turn detection: Silero VAD finds speech, Smart Turn v3 decides the turn has ended."""
+
+    model_config = ConfigDict(frozen=True, hide_input_in_errors=True)
+
+    confidence: float = Field(
+        default=0.7, gt=0, lt=1, description="Silero VAD confidence that a frame is speech."
+    )
+    start_secs: float = Field(
+        default=0.2,
+        gt=0,
+        le=2,
+        description="Speech, in seconds, before the learner counts as speaking.",
+    )
+    stop_secs: float = Field(
+        default=0.2,
+        gt=0,
+        le=2,
+        description="Silence, in seconds, before VAD reports that speech stopped.",
+    )
+    min_volume: float = Field(
+        default=0.6, ge=0, le=1, description="Minimum volume for a frame to count as speech."
+    )
+    turn_fallback_secs: float = Field(
+        default=3.0,
+        gt=0,
+        le=10,
+        description="Silence, in seconds, after which a turn ends even if Smart Turn is unsure.",
+    )
+
+
 class SttSettings(BaseModel):
     model_config = ConfigDict(frozen=True, hide_input_in_errors=True)
 
@@ -112,6 +155,11 @@ class TtsSettings(BaseModel):
             "with a warning when onnxruntime cannot use it."
         ),
     )
+    voice: str = Field(
+        default="af_heart",
+        pattern=r"^[a-z]{2}_[a-z]+$",
+        description="Kokoro voice of the tutor, e.g. af_heart.",
+    )
 
 
 class Settings(BaseSettings):
@@ -126,6 +174,8 @@ class Settings(BaseSettings):
     )
 
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
+    voice: VoiceSettings = Field(default_factory=VoiceSettings)
+    vad: VadSettings = Field(default_factory=VadSettings)
     stt: SttSettings = Field(default_factory=SttSettings)
     llm: LlmSettings = Field(default_factory=LlmSettings)
     tts: TtsSettings = Field(default_factory=TtsSettings)

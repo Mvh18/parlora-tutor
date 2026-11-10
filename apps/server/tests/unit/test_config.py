@@ -152,3 +152,36 @@ def test_invalid_voice_settings_fail_fast(
 
     with pytest.raises(SettingsError, match=name):
         load_settings(env_file=None)
+
+
+def test_voice_and_turn_detection_defaults(clean_env: None) -> None:
+    settings = Settings(_env_file=None)
+
+    assert settings.voice.enabled is True
+    assert settings.tts.voice == "af_heart"
+    assert settings.vad.stop_secs == 0.2, "short VAD silence: Smart Turn decides the turn"
+    assert settings.vad.turn_fallback_secs == 3.0
+
+
+def test_voice_can_be_disabled(monkeypatch: pytest.MonkeyPatch, clean_env: None) -> None:
+    monkeypatch.setenv("PARLORA_VOICE__ENABLED", "false")
+
+    assert Settings(_env_file=None).voice.enabled is False
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("PARLORA_VAD__CONFIDENCE", "1.5"),
+        ("PARLORA_VAD__STOP_SECS", "0"),
+        ("PARLORA_VAD__TURN_FALLBACK_SECS", "60"),
+        ("PARLORA_TTS__VOICE", "../etc/passwd"),
+    ],
+)
+def test_invalid_turn_detection_settings_fail_fast(
+    monkeypatch: pytest.MonkeyPatch, clean_env: None, name: str, value: str
+) -> None:
+    monkeypatch.setenv(name, value)
+
+    with pytest.raises(SettingsError, match=name):
+        load_settings(env_file=None)
