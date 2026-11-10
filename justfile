@@ -113,7 +113,7 @@ bench-tts *args:
 
 # Benchmark Kokoro text-to-speech in the bench image (`--provider cpu|cuda`; OOV words through espeak-ng)
 bench-tts-container *args:
-    uv run python -m scripts.bench.container --writable benchmarks/results scripts.bench.tts {{ args }}
+    uv run python -m scripts.bench.container --gpu --writable benchmarks/results scripts.bench.tts {{ args }}
 
 # Check that speech-to-text and each LLM fit on the GPU together (hard VRAM limit), and record RAM
 bench-memory *models:

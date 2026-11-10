@@ -1,15 +1,17 @@
-"""Memory benchmark: speech-to-text and each LLM on the GPU at the same time.
+"""Memory benchmark: the speech models and each LLM on the GPU at the same time.
 
 This is the one hard rule of the benchmarks (roadmap: everything on the GPU fits in
 8 GB). With every Ollama model unloaded, the GPU's used VRAM is read as the
 baseline; faster-whisper is loaded in this process and transcribes one fixture;
-then each LLM is loaded through the host's Ollama (`num_ctx` 4096) and generates
-once. The VRAM used above the baseline, speech-to-text plus that model, must stay
-at or under `PARLORA_BENCH_VRAM_LIMIT_MB` (default 7680): above it the check fails
-and the exit code is 1. Other GPU processes are listed by executable name, and the
+Kokoro is loaded on the provider the server uses (`--tts-provider`, default `cuda`;
+`none` skips it) and speaks one sentence; then each LLM is loaded through the
+host's Ollama (`num_ctx` 4096) and generates once. The VRAM used above the
+baseline, the speech models plus that LLM, must stay at or under
+`PARLORA_BENCH_VRAM_LIMIT_MB` (default 7680): above it the check fails and the exit
+code is 1. Other GPU processes are listed by executable name, and the
 RAM of the Compose stack (`just up`) and of the host's Ollama process is recorded.
 
-Usage: python -m scripts.bench.memory [MODEL ...]
+Usage: python -m scripts.bench.memory [--tts-provider cuda|cpu|none] [MODEL ...]
 """
 
 import argparse
@@ -46,6 +48,7 @@ from scripts.bench.llm import (
 from scripts.bench.stt import load_fixtures, versions, whisper_transcriber
 
 SETTLE_S = 1.0
+TTS_SENTENCE = "Nice try, but we say I went, not I go."
 
 
 def _run(cmd: list[str]) -> str:
@@ -80,8 +83,9 @@ def ollama_ram_mb() -> float:
 
 def measure(
     *,
-    load_stt: Callable[[], Callable[[Any], str]],
+    load_stt: Callable[[], Callable[[Any], Any]],
     stt_audio: Any,
+    load_tts: Callable[[], Callable[[str], Any]] | None = None,
     load_llm: Callable[[str], int | None],
     unload_all: Callable[[], None],
     models: Sequence[str],
@@ -89,7 +93,7 @@ def measure(
     limit_mb: int,
     settle: Callable[[], None] = lambda: time.sleep(SETTLE_S),
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    """Baseline, then STT, then each LLM with STT loaded; one VRAM check per model."""
+    """Baseline, then STT and Kokoro, then each LLM with them loaded; one check per LLM."""
     unload_all()
     settle()
     baseline = sampler.used_mb()
@@ -97,6 +101,12 @@ def measure(
     transcribe(stt_audio)
     settle()
     with_stt = sampler.used_mb()
+    with_speech = with_stt
+    if load_tts is not None:
+        speak = load_tts()
+        speak(TTS_SENTENCE)
+        settle()
+        with_speech = sampler.used_mb()
     per_model, checks = [], []
     for model in models:
         with sampler:
@@ -110,21 +120,21 @@ def measure(
                 "model": model,
                 "used_mb": used,
                 "above_baseline_mb": used - baseline,
-                "llm_mb": used - with_stt,
+                "llm_mb": used - with_speech,
                 "ollama_size_vram_mb": size_vram,
                 "status": check.status,
             }
         )
         unload_all()
         settle()
-    measurements = {
-        "vram_mb": {
-            "baseline": baseline,
-            "stt_above_baseline": with_stt - baseline,
-            "limit": limit_mb,
-        },
-        "models": per_model,
+    vram: dict[str, Any] = {
+        "baseline": baseline,
+        "stt_above_baseline": with_stt - baseline,
+        "limit": limit_mb,
     }
+    if load_tts is not None:
+        vram["tts_above_stt"] = with_speech - with_stt
+    measurements = {"vram_mb": vram, "models": per_model}
     return measurements, checks
 
 
@@ -132,6 +142,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("models", nargs="*", default=list(DEFAULT_MODELS))
     parser.add_argument("--endpoint", default=OLLAMA)
+    parser.add_argument("--tts-provider", choices=["cuda", "cpu", "none"], default="cuda")
     parser.add_argument("--output-dir", type=Path, default=RESULTS_DIR)
     args = parser.parse_args(argv)
 
@@ -157,10 +168,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         return model_size_vram_mb(client.get("/api/ps"), model)
 
     limit = vram_limit_mb()
-    print(f"memory: STT + {', '.join(args.models)}, limit {limit} MiB", flush=True)
+    tts = "" if args.tts_provider == "none" else f" + Kokoro ({args.tts_provider})"
+    print(f"memory: STT{tts} + {', '.join(args.models)}, limit {limit} MiB", flush=True)
+    tts_providers: list[str] = []
+
+    def load_tts() -> Callable[[str], Any]:
+        from scripts.bench.kokoro_runner import Kokoro
+
+        kokoro = Kokoro(provider="cuda" if args.tts_provider == "cuda" else "cpu")
+        tts_providers.extend(kokoro.providers)
+        return kokoro.synthesize
+
     measurements, checks = measure(
         load_stt=whisper_transcriber,
         stt_audio=load_fixtures()[0].audio,
+        load_tts=None if args.tts_provider == "none" else load_tts,
         load_llm=load_llm,
         unload_all=unload_all,
         models=args.models,
@@ -181,9 +203,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         },
         settings={
             "stt": "faster-whisper large-v3-turbo int8 cuda, one transcription",
+            "tts": None
+            if args.tts_provider == "none"
+            else f"kokoro-v1.0.onnx, provider {args.tts_provider}, one sentence",
+            "tts_onnx_providers": tts_providers,
             "llm_options": {"num_ctx": 4096},
             "limit_env": "PARLORA_BENCH_VRAM_LIMIT_MB",
-            "rule": "used VRAM minus baseline, STT and one LLM loaded together",
+            "rule": "used VRAM minus baseline, STT, Kokoro and one LLM loaded together",
         },
         measurements=measurements,
         checks=checks,
@@ -191,7 +217,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     path = write_result(result, args.output_dir)
     for entry in measurements["models"]:
         print(
-            f"memory: STT + {entry['model']}: {entry['above_baseline_mb']} MiB above baseline "
+            f"memory: STT{tts} + {entry['model']}: {entry['above_baseline_mb']} MiB above baseline "
             f"-> {entry['status']}"
         )
     print(f"memory: -> {path.name}")

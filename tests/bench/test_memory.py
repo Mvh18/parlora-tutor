@@ -93,3 +93,40 @@ def test_a_lower_limit_turns_a_pass_into_a_fail() -> None:
 
     assert checks[0]["status"] == "fail"
     assert checks[0]["limit"] == 4_000
+
+
+def test_kokoro_is_loaded_after_stt_and_counted_with_the_speech_models() -> None:
+    # baseline 1000, with STT 2300, with Kokoro 2900; qwen3:4b reaches 6000
+    sampler = Sampler(readings=[1_000, 2_300, 2_900, 5_900], peaks=[6_000])
+    calls: list[str] = []
+
+    def load_tts() -> Any:
+        calls.append("load kokoro")
+        return lambda text: calls.append(f"speak {text}")
+
+    measurements, checks = memory.measure(
+        load_stt=lambda: lambda audio: calls.append("transcribe"),
+        stt_audio="pcm",
+        load_tts=load_tts,
+        load_llm=lambda model: calls.append(f"load {model}"),
+        unload_all=lambda: calls.append("unload"),
+        models=["qwen3:4b"],
+        sampler=sampler,
+        limit_mb=7_680,
+        settle=lambda: None,
+    )
+
+    assert calls[:4] == ["unload", "transcribe", "load kokoro", f"speak {memory.TTS_SENTENCE}"]
+    assert measurements["vram_mb"]["tts_above_stt"] == 600
+    (entry,) = measurements["models"]
+    assert entry["above_baseline_mb"] == 5_000
+    assert entry["llm_mb"] == 3_100
+    assert checks[0]["status"] == "pass"
+
+
+def test_without_kokoro_the_tts_share_is_null() -> None:
+    sampler = Sampler(readings=[1_000, 2_300, 5_300], peaks=[5_400])
+
+    (measurements, _), _ = run(sampler, ["gemma3:4b"])
+
+    assert measurements["vram_mb"].get("tts_above_stt") is None

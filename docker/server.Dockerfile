@@ -69,6 +69,13 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=packages/core/pyproject.toml,target=packages/core/pyproject.toml \
     --mount=type=bind,source=apps/server/pyproject.toml,target=apps/server/pyproject.toml \
     uv sync --frozen --no-dev --group bench --inexact --no-install-workspace
+# The benchmarks share the server's adapters: install the workspace packages
+# editable, so at run time they load from the repository mounted at /app.
+COPY pyproject.toml uv.lock ./
+COPY packages/core packages/core
+COPY apps/server apps/server
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --package parlora-server --inexact
 # Benchmark weights live in their own named volume mounted here.
 RUN mkdir /cache && chown parlora:parlora /cache
 ENV PARLORA_BENCH_CACHE=/cache \

@@ -13,8 +13,9 @@ Measured on the target machine with the scripts in `scripts/bench/`. Decisions t
   closest ranks (NumPy's default).
 - **Time to first token (TTFT).** Measured on the client, warm runs only: from
   sending the request to Ollama's native API to the first chunk with text.
-- **Time to first audio.** The Kokoro runner does not stream, so it is the
-  synthesis time of one sentence of a reply.
+- **Time to first audio.** Kokoro synthesises each text chunk in one piece, so
+  it is the synthesis time of one sentence of a reply. Variants ending in
+  `-cuda` ran on onnxruntime's CUDA provider, the others on the CPU.
 - **Real-time factor (RTF).** Processing time divided by audio duration; below
   1.0 is faster than real time.
 - **Word error rate (WER).** On synthetic speech (the committed Kokoro fixtures)
@@ -40,21 +41,23 @@ Measured on the target machine with the scripts in `scripts/bench/`. Decisions t
 | container | 10.8 s | 0.428 s / 0.547 s | 0.069 | 0.005 | 1,303 MiB | ✅ | [20261106T180314Z-stt-container](../benchmarks/results/20261106T180314Z-stt-container.json) |
 | native | 5.1 s | 0.409 s / 0.486 s | 0.069 | 0.005 | 1,329 MiB | ✅ | [20261106T175745Z-stt-native](../benchmarks/results/20261106T175745Z-stt-native.json) |
 
-## Text-to-speech (Kokoro ONNX on the CPU)
+## Text-to-speech (Kokoro ONNX on the CPU or CUDA)
 
 | Variant | OOV mode | First audio p50 / p95 | RTF p50 | OOV words | First audio ≤ 0.5 s | RTF ≤ 1.0 | Result |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| container | cli | 1.143 s / 1.876 s | 0.55 | 4 | ⚠️ | ✅ | [20261106T180934Z-tts-container](../benchmarks/results/20261106T180934Z-tts-container.json) |
-| native | silent ⚠️ OOV words dropped | 1.012 s / 1.830 s | 0.56 | 4 | ⚠️ | ✅ | [20261106T180738Z-tts-native](../benchmarks/results/20261106T180738Z-tts-native.json) |
+| container | cli | 2.261 s / 3.810 s | 1.09 | 4 | ⚠️ | ⚠️ | [20261108T174025Z-tts-container](../benchmarks/results/20261108T174025Z-tts-container.json) |
+| container-cuda | cli | 0.139 s / 0.323 s | 0.07 | 4 | ✅ | ✅ | [20261108T174057Z-tts-container-cuda](../benchmarks/results/20261108T174057Z-tts-container-cuda.json) |
+| native | silent ⚠️ OOV words dropped | 1.191 s / 1.903 s | 0.62 | 4 | ⚠️ | ✅ | [20261108T172537Z-tts-native](../benchmarks/results/20261108T172537Z-tts-native.json) |
+| native-cuda | silent ⚠️ OOV words dropped | 0.188 s / 0.384 s | 0.11 | 4 | ✅ | ✅ | [20261108T172004Z-tts-native-cuda](../benchmarks/results/20261108T172004Z-tts-native-cuda.json) |
 
-## Memory: speech-to-text and each LLM on the GPU together
+## Memory: the speech models and each LLM on the GPU together
 
-Baseline 958 MiB, speech-to-text adds 1,174 MiB, limit 7,680 MiB ([20261107T010309Z-memory-native](../benchmarks/results/20261107T010309Z-memory-native.json)).
+Baseline 1,016 MiB, speech-to-text adds 1,227 MiB, Kokoro adds 533 MiB, limit 7,680 MiB ([20261108T174439Z-memory-native](../benchmarks/results/20261108T174439Z-memory-native.json)).
 
-| Model | STT + LLM above baseline | Total used | Within limit |
+| Model | Speech + LLM above baseline | Total used | Within limit |
 | --- | --- | --- | --- |
-| `qwen3:4b-instruct-2507-q4_K_M` | 4,310 MiB | 5,268 MiB | ✅ |
-| `gemma3:4b` | 4,923 MiB | 5,881 MiB | ✅ |
-| `qwen3:8b` | 6,628 MiB | 7,586 MiB | ✅ |
+| `qwen3:4b-instruct-2507-q4_K_M` | 4,847 MiB | 5,863 MiB | ✅ |
+| `gemma3:4b` | 5,449 MiB | 6,465 MiB | ✅ |
+| `qwen3:8b` | 7,070 MiB | 8,086 MiB | ✅ |
 
-RAM: parlora-postgres-1 37 MiB, parlora-server-1 66 MiB; host Ollama 54 MiB.
+RAM: stack not running; host Ollama 36 MiB.

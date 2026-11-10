@@ -61,3 +61,14 @@ def test_links_point_at_the_result_files() -> None:
     for path in FIXTURES.glob("*.json"):
         assert f"(../benchmarks/results/{path.name})" in text
     assert json.loads((FIXTURES / next(FIXTURES.glob("*-llm-*.json")).name).read_text("utf-8"))
+
+
+def test_memory_section_shows_kokoro_when_measured() -> None:
+    results = report.load(FIXTURES)
+    (name, memory), *_ = [(n, r) for n, r in results if r["component"] == "memory"]
+    with_tts = json.loads(json.dumps(memory))
+    with_tts["measurements"]["vram_mb"]["tts_above_stt"] = 600
+    others = [(n, r) for n, r in results if r["component"] != "memory"]
+
+    assert "Kokoro adds" not in report.render(results)
+    assert "Kokoro adds 600 MiB" in report.render([*others, (name, with_tts)])
