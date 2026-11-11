@@ -139,10 +139,326 @@
           }
         }
       }
+    },
+    "/api/v1/calls/offer": {
+      "post": {
+        "tags": [
+          "calls"
+        ],
+        "summary": "Start a call from a WebRTC offer",
+        "operationId": "calls_offer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CallOffer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallAnswer"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The SDP offer could not be used.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The server holds its maximum number of calls (`/problems/call-limit`).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The request body is too large.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A voice dependency is not ready (`/problems/voice-unavailable`); `unavailable` lists which.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem document (RFC 9457)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calls/{call_id}": {
+      "patch": {
+        "tags": [
+          "calls"
+        ],
+        "summary": "Add the client's ICE candidates to a call",
+        "operationId": "calls_add_ice_candidates",
+        "parameters": [
+          {
+            "name": "call_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "description": "The id the offer answered with.",
+              "title": "Call Id"
+            },
+            "description": "The id the offer answered with."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IceCandidates"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No active call has this id.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem document (RFC 9457)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "calls"
+        ],
+        "summary": "End a call",
+        "operationId": "calls_end",
+        "parameters": [
+          {
+            "name": "call_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "description": "The id the offer answered with.",
+              "title": "Call Id"
+            },
+            "description": "The id the offer answered with."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No active call has this id.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem document (RFC 9457)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "CallAnswer": {
+        "properties": {
+          "call_id": {
+            "type": "string",
+            "title": "Call Id",
+            "description": "Id of the call for ICE candidates and ending it."
+          },
+          "sdp": {
+            "type": "string",
+            "title": "Sdp",
+            "description": "SDP answer."
+          },
+          "type": {
+            "type": "string",
+            "const": "answer",
+            "title": "Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "call_id",
+          "sdp",
+          "type"
+        ],
+        "title": "CallAnswer"
+      },
+      "CallOffer": {
+        "properties": {
+          "sdp": {
+            "type": "string",
+            "maxLength": 32768,
+            "minLength": 1,
+            "title": "Sdp",
+            "description": "SDP offer."
+          },
+          "type": {
+            "type": "string",
+            "const": "offer",
+            "title": "Type"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/CallSettingsIn"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sdp",
+          "type",
+          "settings"
+        ],
+        "title": "CallOffer"
+      },
+      "CallSettingsIn": {
+        "properties": {
+          "target_language": {
+            "type": "string",
+            "pattern": "^[a-z]{2}$",
+            "title": "Target Language",
+            "description": "Language practised in the call.",
+            "examples": [
+              "en"
+            ]
+          },
+          "feedback_language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z]{2}$",
+                "examples": [
+                  "en"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback Language",
+            "description": "Language corrections are explained in; the target language when omitted."
+          },
+          "level": {
+            "$ref": "#/components/schemas/CefrLevel",
+            "description": "CEFR level of the learner."
+          },
+          "topic": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Topic",
+            "description": "What the call is about."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "target_language",
+          "level",
+          "topic"
+        ],
+        "title": "CallSettings"
+      },
       "CefrBand": {
         "type": "string",
         "enum": [
@@ -152,6 +468,19 @@
         ],
         "title": "CefrBand",
         "description": "The three CEFR bands, each grouping two levels."
+      },
+      "CefrLevel": {
+        "type": "string",
+        "enum": [
+          "A1",
+          "A2",
+          "B1",
+          "B2",
+          "C1",
+          "C2"
+        ],
+        "title": "CefrLevel",
+        "description": "A CEFR level, ordered from A1 (lowest) to C2 (highest).\n\nLevels compare only with other levels, never with strings, so an ordering\nbug cannot hide behind lexicographic comparison."
       },
       "CefrLevelList": {
         "properties": {
@@ -195,6 +524,78 @@
           "is_beginner"
         ],
         "title": "CefrLevelOut"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "IceCandidateIn": {
+        "properties": {
+          "candidate": {
+            "type": "string",
+            "maxLength": 1024,
+            "title": "Candidate",
+            "description": "Candidate line; empty marks the end of candidates."
+          },
+          "sdp_mid": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sdp Mid"
+          },
+          "sdp_mline_index": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 64.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sdp Mline Index"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "candidate"
+        ],
+        "title": "IceCandidate"
+      },
+      "IceCandidates": {
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/IceCandidateIn"
+            },
+            "type": "array",
+            "maxItems": 64,
+            "title": "Candidates"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "candidates"
+        ],
+        "title": "IceCandidates"
       },
       "LanguageList": {
         "properties": {
@@ -284,10 +685,14 @@
             },
             "type": "object",
             "title": "Checks",
-            "description": "State of each dependency, keyed by name. Today only `database`; clients must accept new keys and values.",
+            "description": "State of each dependency, keyed by name: `database` and the voice dependencies `stt`, `tts`, `llm` and `vad`, each `ok`, `loading`, `failed` or `disabled`. Clients must accept new keys and values.",
             "examples": [
               {
-                "database": "ok"
+                "database": "ok",
+                "llm": "ok",
+                "stt": "ok",
+                "tts": "ok",
+                "vad": "ok"
               }
             ]
           }
@@ -298,6 +703,46 @@
           "checks"
         ],
         "title": "Readiness"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
       },
       "Problem": {
         "additionalProperties": true,

@@ -8,6 +8,9 @@ the `thinking` capability (asked once per adapter through `/api/show`). Every
 request passes `keep_alive` (by default -1: the model stays resident between
 turns) and `num_ctx`.
 
+`warm_up` loads the model at start-up, so the first turn of a call does not wait
+for it.
+
 Every failure (Ollama unreachable, an HTTP error, an error inside the stream, a
 malformed or cut stream) becomes a `LanguageModelError`. Error messages name the
 endpoint, the model and Ollama's own error, never the conversation.
@@ -74,6 +77,23 @@ class OllamaLanguageModel:
                     ) from None
                 self._capabilities = frozenset(str(c) for c in found)
             return self._capabilities
+
+    async def warm_up(self) -> None:
+        """Check the model is pulled and load it with the call's context window.
+
+        A generate request without a prompt only loads the model; `keep_alive` keeps
+        it resident and the same `num_ctx` spares a reload on the first reply.
+        """
+        await self.capabilities()
+        await self._send(
+            "POST",
+            "/api/generate",
+            {
+                "model": self.model,
+                "keep_alive": self.keep_alive,
+                "options": {"num_ctx": self.num_ctx},
+            },
+        )
 
     async def stream_reply(self, messages: Sequence[Message]) -> AsyncIterator[str]:
         body: dict[str, Any] = {

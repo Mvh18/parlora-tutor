@@ -10,12 +10,15 @@ from parlora_server.main import create_app
 pytestmark = pytest.mark.unit
 
 
-async def healthy() -> bool:
-    return True
+VOICE_DISABLED = {"stt": "disabled", "tts": "disabled", "llm": "disabled", "vad": "disabled"}
 
 
-async def failing() -> bool:
-    return False
+async def healthy() -> str:
+    return "ok"
+
+
+async def failing() -> str:
+    return "failed"
 
 
 def test_live_reports_ok_and_the_version(client: TestClient) -> None:
@@ -27,13 +30,13 @@ def test_live_reports_ok_and_the_version(client: TestClient) -> None:
 
 def test_ready_when_every_check_passes(settings: Settings) -> None:
     app = create_app(settings)
-    app.state.readiness_checks = {"database": healthy}
+    app.state.readiness_checks["database"] = healthy
 
     with TestClient(app) as client:
         response = client.get("/api/v1/health/ready")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "checks": {"database": "ok"}}
+    assert response.json() == {"status": "ok", "checks": {"database": "ok", **VOICE_DISABLED}}
 
 
 def test_not_ready_is_a_503_problem_listing_the_failed_check(settings: Settings) -> None:
@@ -48,7 +51,7 @@ def test_not_ready_is_a_503_problem_listing_the_failed_check(settings: Settings)
     body = response.json()
     assert body["status"] == 503
     assert body["instance"] == "/api/v1/health/ready"
-    assert body["checks"] == {"database": "unavailable", "models": "ok"}
+    assert body["checks"] == {"database": "failed", "models": "ok"}
 
 
 def test_ready_without_a_database_hides_the_connection_string(client: TestClient) -> None:
@@ -56,6 +59,6 @@ def test_ready_without_a_database_hides_the_connection_string(client: TestClient
     response = client.get("/api/v1/health/ready")
 
     assert response.status_code == 503
-    assert response.json()["checks"] == {"database": "unavailable"}
+    assert response.json()["checks"] == {"database": "failed", **VOICE_DISABLED}
     assert "postgresql" not in response.text
     assert "127.0.0.1:1" not in response.text
