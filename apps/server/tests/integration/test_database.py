@@ -60,7 +60,8 @@ def test_readiness_follows_the_database(
         down = client.get("/api/v1/health/ready")
 
     assert up.status_code == 200
-    assert up.json() == {"status": "ok", "checks": {"database": "ok"}}
+    assert up.json()["status"] == "ok"
+    assert up.json()["checks"]["database"] == "ok"
     assert down.status_code == 503
-    assert down.json()["checks"] == {"database": "unavailable"}
+    assert down.json()["checks"]["database"] == "failed"
     assert disposable_postgres.password not in down.text

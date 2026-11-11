@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from parlora_server.api.middleware import request_id_of, response_headers
+from parlora_server.api.middleware import BodyTooLargeError, request_id_of, response_headers
 
 PROBLEM_JSON = "application/problem+json"
 
@@ -44,12 +44,18 @@ class ProblemError(Exception):
     """Raise from a route to answer with a problem document."""
 
     def __init__(
-        self, status: int, detail: str, extensions: Mapping[str, Any] | None = None
+        self,
+        status: int,
+        detail: str,
+        extensions: Mapping[str, Any] | None = None,
+        *,
+        type: str = "about:blank",
     ) -> None:
         super().__init__(detail)
         self.status = status
         self.detail = detail
         self.extensions = dict(extensions or {})
+        self.type = type
 
 
 def problem_response(
@@ -58,8 +64,11 @@ def problem_response(
     detail: str,
     extensions: Mapping[str, Any] | None = None,
     headers: Mapping[str, str] | None = None,
+    *,
+    type: str = "about:blank",
 ) -> ProblemResponse:
     problem = Problem(
+        type=type,
         title=HTTPStatus(status).phrase,
         status=status,
         detail=detail,
@@ -72,11 +81,14 @@ def problem_response(
 
 async def _problem_error(request: Request, exc: Exception) -> ProblemResponse:
     assert isinstance(exc, ProblemError)  # noqa: S101 - registered for ProblemError only
-    return problem_response(request, exc.status, exc.detail, exc.extensions)
+    return problem_response(request, exc.status, exc.detail, exc.extensions, type=exc.type)
 
 
 async def _http_error(request: Request, exc: Exception) -> ProblemResponse:
     assert isinstance(exc, StarletteHTTPException)  # noqa: S101 - registered for it only
+    if isinstance(exc.__cause__, BodyTooLargeError):
+        # FastAPI turns any error while reading the body into a 400.
+        return await _body_too_large(request, exc.__cause__)
     detail = exc.detail if isinstance(exc.detail, str) else HTTPStatus(exc.status_code).phrase
     return problem_response(request, exc.status_code, detail, headers=exc.headers)
 
@@ -88,6 +100,10 @@ async def _validation_error(request: Request, exc: Exception) -> ProblemResponse
     return problem_response(
         request, 422, "The request is not valid.", extensions={"errors": errors}
     )
+
+
+async def _body_too_large(request: Request, exc: Exception) -> ProblemResponse:
+    return problem_response(request, 413, "The request body is too large.")
 
 
 async def _unhandled_error(request: Request, exc: Exception) -> ProblemResponse:
@@ -106,4 +122,5 @@ def install_problem_handlers(app: FastAPI) -> None:
     app.add_exception_handler(ProblemError, _problem_error)
     app.add_exception_handler(StarletteHTTPException, _http_error)
     app.add_exception_handler(RequestValidationError, _validation_error)
+    app.add_exception_handler(BodyTooLargeError, _body_too_large)
     app.add_exception_handler(Exception, _unhandled_error)

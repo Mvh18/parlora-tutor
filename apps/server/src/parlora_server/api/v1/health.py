@@ -10,8 +10,10 @@ from pydantic import BaseModel, Field
 from parlora_server import __version__
 from parlora_server.api.problems import ProblemError
 
-# A readiness check answers True when its dependency is usable.
-ReadinessCheck = Callable[[], Awaitable[bool]]
+# A readiness check answers its dependency's state: `ok`, `loading`, `failed` or
+# `disabled`. Disabled dependencies do not hold readiness back.
+ReadinessCheck = Callable[[], Awaitable[str]]
+USABLE = frozenset({"ok", "disabled"})
 
 router = APIRouter(prefix="/health", tags=["health"])
 
@@ -25,10 +27,11 @@ class Readiness(BaseModel):
     status: Literal["ok"]
     checks: dict[str, str] = Field(
         description=(
-            "State of each dependency, keyed by name. Today only `database`; "
-            "clients must accept new keys and values."
+            "State of each dependency, keyed by name: `database` and the voice "
+            "dependencies `stt`, `tts`, `llm` and `vad`, each `ok`, `loading`, `failed` "
+            "or `disabled`. Clients must accept new keys and values."
         ),
-        examples=[{"database": "ok"}],
+        examples=[{"database": "ok", "stt": "ok", "tts": "ok", "llm": "ok", "vad": "ok"}],
     )
 
 
@@ -44,11 +47,8 @@ async def live() -> Liveness:
 )
 async def ready(request: Request) -> Readiness:
     checks: Mapping[str, ReadinessCheck] = request.app.state.readiness_checks
-    outcomes = await asyncio.gather(*(check() for check in checks.values()))
-    results = {
-        name: "ok" if passed else "unavailable"
-        for name, passed in zip(checks, outcomes, strict=True)
-    }
-    if not all(outcomes):
+    states = await asyncio.gather(*(check() for check in checks.values()))
+    results = dict(zip(checks, states, strict=True))
+    if not USABLE.issuperset(states):
         raise ProblemError(503, "A dependency is unavailable.", extensions={"checks": results})
     return Readiness(status="ok", checks=results)

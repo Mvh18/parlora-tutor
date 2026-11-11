@@ -27,7 +27,11 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.fixture
 def make_settings(clean_env: None) -> Callable[..., Settings]:
     def make(**overrides: object) -> Settings:
-        values: dict[str, object] = {"database": {"url": UNREACHABLE_DATABASE_URL}}
+        # Voice is off unless a test turns it on: unit tests never load a model.
+        values: dict[str, object] = {
+            "database": {"url": UNREACHABLE_DATABASE_URL},
+            "voice": {"enabled": False},
+        }
         values.update(overrides)
         return Settings(_env_file=None, **values)  # type: ignore[arg-type]
 

@@ -261,3 +261,29 @@ def test_load_builds_the_adapter_from_the_settings() -> None:
         600,
     )
     asyncio.run(model.aclose())
+
+
+# ── Warm-up at start-up (design D7) ─────────────────────────────────────────
+
+
+def test_warm_up_loads_the_model_resident_with_the_context_window() -> None:
+    fake = FakeOllama()
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        if request.url.path == "/api/generate":
+            fake.requests.append((request.url.path, json.loads(request.content)))
+            return httpx2.Response(200, json={"model": MODEL, "done": True})
+        return fake(request)
+
+    asyncio.run(adapter(handler, keep_alive=-1, num_ctx=4096).warm_up())
+
+    generate = [body for path, body in fake.requests if path == "/api/generate"]
+    assert generate == [{"model": MODEL, "keep_alive": -1, "options": {"num_ctx": 4096}}]
+
+
+def test_warm_up_fails_when_the_model_is_not_pulled() -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(404, json={"error": f"model '{MODEL}' not found"})
+
+    with pytest.raises(LanguageModelError, match="not found"):
+        asyncio.run(adapter(handler).warm_up())

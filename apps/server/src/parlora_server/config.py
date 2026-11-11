@@ -69,6 +69,20 @@ class VoiceSettings(BaseModel):
             "checks as disabled."
         ),
     )
+    max_calls: int = Field(
+        default=1,
+        ge=1,
+        le=16,
+        description="Calls held at once; further offers get 409 (one GPU serves one learner).",
+    )
+    max_call_seconds: int = Field(
+        default=1800, ge=60, description="Maximum length of a call, in seconds."
+    )
+    idle_seconds: int = Field(
+        default=120,
+        ge=10,
+        description="A call where nobody speaks for this many seconds is ended.",
+    )
 
 
 class VadSettings(BaseModel):
@@ -179,6 +193,10 @@ class Settings(BaseSettings):
     stt: SttSettings = Field(default_factory=SttSettings)
     llm: LlmSettings = Field(default_factory=LlmSettings)
     tts: TtsSettings = Field(default_factory=TtsSettings)
+    models_dir: Path = Field(
+        default=Path("models"),
+        description="Directory for downloaded model weights (Kokoro); /models in the image.",
+    )
     cors_origins: list[str] = Field(
         default_factory=lambda: ["http://localhost:3000"],
         description="Browser origins allowed to call the API (JSON list, no wildcard).",
