@@ -72,16 +72,113 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/calls/offer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start a call from a WebRTC offer */
+        post: operations["calls_offer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/calls/{call_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** End a call */
+        delete: operations["calls_end"];
+        options?: never;
+        head?: never;
+        /** Add the client's ICE candidates to a call */
+        patch: operations["calls_add_ice_candidates"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** CallAnswer */
+        CallAnswer: {
+            /**
+             * Call Id
+             * @description Id of the call for ICE candidates and ending it.
+             */
+            call_id: string;
+            /**
+             * Sdp
+             * @description SDP answer.
+             */
+            sdp: string;
+            /**
+             * Type
+             * @constant
+             */
+            type: "answer";
+        };
+        /** CallOffer */
+        CallOffer: {
+            /**
+             * Sdp
+             * @description SDP offer.
+             */
+            sdp: string;
+            /**
+             * Type
+             * @constant
+             */
+            type: "offer";
+            settings: components["schemas"]["CallSettingsIn"];
+        };
+        /** CallSettings */
+        CallSettingsIn: {
+            /**
+             * Target Language
+             * @description Language practised in the call.
+             * @example en
+             */
+            target_language: string;
+            /**
+             * Feedback Language
+             * @description Language corrections are explained in; the target language when omitted.
+             */
+            feedback_language?: string | null;
+            /** @description CEFR level of the learner. */
+            level: components["schemas"]["CefrLevel"];
+            /**
+             * Topic
+             * @description What the call is about.
+             */
+            topic: string;
+        };
         /**
          * CefrBand
          * @description The three CEFR bands, each grouping two levels.
          * @enum {string}
          */
         CefrBand: "basic" | "independent" | "proficient";
+        /**
+         * CefrLevel
+         * @description A CEFR level, ordered from A1 (lowest) to C2 (highest).
+         *
+         *     Levels compare only with other levels, never with strings, so an ordering
+         *     bug cannot hide behind lexicographic comparison.
+         * @enum {string}
+         */
+        CefrLevel: "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
         /** CefrLevelList */
         CefrLevelList: {
             /**
@@ -103,6 +200,28 @@ export interface components {
              * @description A1 and A2: feedback may use the native language.
              */
             is_beginner: boolean;
+        };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
+        /** IceCandidate */
+        IceCandidateIn: {
+            /**
+             * Candidate
+             * @description Candidate line; empty marks the end of candidates.
+             */
+            candidate: string;
+            /** Sdp Mid */
+            sdp_mid?: string | null;
+            /** Sdp Mline Index */
+            sdp_mline_index?: number | null;
+        };
+        /** IceCandidates */
+        IceCandidates: {
+            /** Candidates */
+            candidates: components["schemas"]["IceCandidateIn"][];
         };
         /** LanguageList */
         LanguageList: {
@@ -154,14 +273,31 @@ export interface components {
             status: "ok";
             /**
              * Checks
-             * @description State of each dependency, keyed by name. Today only `database`; clients must accept new keys and values.
+             * @description State of each dependency, keyed by name: `database` and the voice dependencies `stt`, `tts`, `llm` and `vad`, each `ok`, `loading`, `failed` or `disabled`. Clients must accept new keys and values.
              * @example {
-             *       "database": "ok"
+             *       "database": "ok",
+             *       "llm": "ok",
+             *       "stt": "ok",
+             *       "tts": "ok",
+             *       "vad": "ok"
              *     }
              */
             checks: {
                 [key: string]: string;
             };
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+            /** Input */
+            input?: unknown;
+            /** Context */
+            ctx?: Record<string, never>;
         };
         /**
          * Problem
@@ -323,6 +459,184 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CefrLevelList"];
+                };
+            };
+            /** @description Problem document (RFC 9457) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    calls_offer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CallOffer"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallAnswer"];
+                };
+            };
+            /** @description The SDP offer could not be used. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The server holds its maximum number of calls (`/problems/call-limit`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The request body is too large. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A voice dependency is not ready (`/problems/voice-unavailable`); `unavailable` lists which. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem document (RFC 9457) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    calls_end: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the offer answered with. */
+                call_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No active call has this id. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem document (RFC 9457) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    calls_add_ice_candidates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the offer answered with. */
+                call_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IceCandidates"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No active call has this id. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
             /** @description Problem document (RFC 9457) */
