@@ -153,6 +153,15 @@ integration itself arrives in Phase 7; these rules hold from the start:
   lands in Tutor first, then in Hub. Results reach Hub through the API and,
   later, through signed webhooks; the call screen talks to Tutor over WebRTC
   with the RTVI message schema published in the contract.
+- **Call signalling.** `POST /api/v1/calls/offer` takes the request shape of
+  Pipecat's small-WebRTC transport (`{sdp, type, pc_id, restart_pc,
+requestData}`, with the call's level, topic and languages under
+  `requestData`) and answers `{call_id, pc_id, sdp, type}`, where `pc_id`
+  equals `call_id`. ICE candidates go to `PATCH /api/v1/calls/offer` with the
+  `pc_id` in the body, or to `PATCH /api/v1/calls/{call_id}`; `DELETE
+/api/v1/calls/{call_id}` ends the call. Renegotiating a call is a 400. A
+  call screen built on that transport, or one that copies its signalling as
+  the dev client does, needs no adapter.
 - **Stand-alone mode.** Every integration feature is optional and off until
   configured, and Tutor runs fully on its own with the dev client. If Tutor
   is down, Hub keeps working; only calls and AI grading are unavailable.
