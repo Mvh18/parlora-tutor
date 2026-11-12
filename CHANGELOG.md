@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.5.0](https://github.com/Mvh18/parlora-tutor/compare/v0.4.0...v0.5.0) (2026-11-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* **server:** accept pipecat's small-webrtc transport in call signalling ([#111](https://github.com/Mvh18/parlora-tutor/issues/111))
+
+### Features
+
+* **core:** add streaming domain ports ([#99](https://github.com/Mvh18/parlora-tutor/issues/99)) ([f440c6d](https://github.com/Mvh18/parlora-tutor/commit/f440c6dada9ee6b8a5558f5885a5abc1fa9d20e6))
+* **server:** accept pipecat's small-webrtc transport in call signalling ([#111](https://github.com/Mvh18/parlora-tutor/issues/111)) ([724d1e9](https://github.com/Mvh18/parlora-tutor/commit/724d1e907824a57441cc7cb620a6f756ae7a5128))
+* **server:** add call signalling under api v1 ([#108](https://github.com/Mvh18/parlora-tutor/issues/108)) ([0dc94a6](https://github.com/Mvh18/parlora-tutor/commit/0dc94a68ef14b41f3a85d8e767ea6929251db322))
+* **server:** add kokoro text-to-speech on cpu or cuda ([#102](https://github.com/Mvh18/parlora-tutor/issues/102)) ([f27eb8f](https://github.com/Mvh18/parlora-tutor/commit/f27eb8f75c083eda06e0082a11834e940a020f72))
+* **server:** add speech-to-text and streaming llm adapters ([#105](https://github.com/Mvh18/parlora-tutor/issues/105)) ([4b8b3e4](https://github.com/Mvh18/parlora-tutor/commit/4b8b3e48b8ad930c08cef2145b0779ab60321576))
+* **server:** add the voice pipeline with turn detection and barge-in ([#106](https://github.com/Mvh18/parlora-tutor/issues/106)) ([d6a9727](https://github.com/Mvh18/parlora-tutor/commit/d6a9727641c11c3a6b7a54640210f01e0fda15e8))
+* **server:** add turn latency metrics ([#109](https://github.com/Mvh18/parlora-tutor/issues/109)) ([7b8a43f](https://github.com/Mvh18/parlora-tutor/commit/7b8a43fefb1fef9103fa5f01c8bcf89abd84d755))
+
 ## [0.4.0](https://github.com/Mvh18/parlora-tutor/compare/v0.3.0...v0.4.0) (2026-10-29)
 
 
