@@ -98,10 +98,19 @@ def client(settings: Settings, starter: FakeStarter) -> Iterator[TestClient]:
         yield test_client
 
 
+def offer_body(**settings: Any) -> dict[str, Any]:
+    """An offer as Pipecat's small-WebRTC transport posts it, settings under `requestData`."""
+    return {
+        "sdp": SDP,
+        "type": "offer",
+        "pc_id": None,
+        "restart_pc": False,
+        "requestData": {**SETTINGS, **settings},
+    }
+
+
 def offer(client: TestClient, **settings: Any) -> Any:
-    return client.post(
-        OFFER, json={"sdp": SDP, "type": "offer", "settings": {**SETTINGS, **settings}}
-    )
+    return client.post(OFFER, json=offer_body(**settings))
 
 
 def assert_problem(response: Any, status: int, type_: str = "about:blank") -> dict[str, Any]:
@@ -123,7 +132,12 @@ def test_an_offer_starts_a_call_with_validated_settings(
 
     assert response.status_code == 200
     body = response.json()
-    assert body == {"call_id": body["call_id"], "sdp": ANSWER.sdp, "type": "answer"}
+    assert body == {
+        "call_id": body["call_id"],
+        "pc_id": body["call_id"],
+        "sdp": ANSWER.sdp,
+        "type": "answer",
+    }
     ((sdp, settings),) = starter.offers
     assert sdp == SdpDescription(SDP, "offer")
     assert settings.level is CefrLevel.B1
@@ -150,11 +164,12 @@ def test_invalid_settings_are_422_and_create_no_peer_connection(
     body = assert_problem(offer(client, **changes), 422)
 
     assert body["errors"]
+    assert all(error["loc"][:2] == ["body", "requestData"] for error in body["errors"])
     assert starter.offers == []
 
 
 def test_an_offer_must_be_an_sdp_offer(client: TestClient, starter: FakeStarter) -> None:
-    response = client.post(OFFER, json={"sdp": SDP, "type": "answer", "settings": SETTINGS})
+    response = client.post(OFFER, json={**offer_body(), "type": "answer"})
 
     assert_problem(response, 422)
     assert starter.offers == []
@@ -204,33 +219,87 @@ def test_voice_disabled_is_503_naming_every_dependency(
 
 
 def test_an_oversized_request_is_413(client: TestClient, starter: FakeStarter) -> None:
-    response = client.post(
-        OFFER,
-        json={"sdp": "a=x\r\n" * 20_000, "type": "offer", "settings": SETTINGS},
-    )
+    response = client.post(OFFER, json={**offer_body(), "sdp": "a=x\r\n" * 20_000})
 
     assert_problem(response, 413)
     assert starter.offers == []
 
 
+def test_an_offer_without_the_transport_fields_is_accepted(
+    client: TestClient, starter: FakeStarter
+) -> None:
+    body = offer_body()
+    del body["pc_id"], body["restart_pc"]
+
+    response = client.post(OFFER, json=body)
+
+    assert response.status_code == 200
+    assert len(starter.offers) == 1
+
+
+@pytest.mark.parametrize("renegotiation", [{"pc_id": "abc"}, {"restart_pc": True}])
+def test_renegotiating_is_400_and_creates_no_peer_connection(
+    client: TestClient, starter: FakeStarter, renegotiation: dict[str, Any]
+) -> None:
+    response = client.post(OFFER, json={**offer_body(), **renegotiation})
+
+    body = assert_problem(response, 400)
+    assert "renegotiat" in body["detail"].lower()
+    assert starter.offers == []
+
+
+def test_the_old_settings_field_is_rejected(client: TestClient, starter: FakeStarter) -> None:
+    body = offer_body()
+    body["settings"] = body.pop("requestData")
+
+    assert_problem(client.post(OFFER, json=body), 422)
+    assert starter.offers == []
+
+
 # ── ICE candidates and end ──────────────────────────────────────────────────
+
+CANDIDATES: list[dict[str, Any]] = [
+    {
+        "candidate": "candidate:1 1 udp 2122260223 127.0.0.1 50000 typ host",
+        "sdp_mid": "0",
+        "sdp_mline_index": 0,
+    },
+    {"candidate": "", "sdp_mid": "0", "sdp_mline_index": 0},
+]
+
+
+def test_candidates_sent_to_the_offer_url_with_the_pc_id_reach_the_call(
+    client: TestClient, starter: FakeStarter
+) -> None:
+    pc_id = offer(client).json()["pc_id"]
+
+    response = client.patch(OFFER, json={"pc_id": pc_id, "candidates": CANDIDATES})
+
+    assert response.status_code == 204
+    assert starter.sessions[0].candidates == [IceCandidate(**c) for c in CANDIDATES]
+
+
+def test_candidates_for_an_unknown_pc_id_are_404(client: TestClient) -> None:
+    response = client.patch(
+        OFFER, json={"pc_id": "0123456789abcdef0123456789abcdef", "candidates": CANDIDATES}
+    )
+
+    body = assert_problem(response, 404)
+    assert body["instance"] == OFFER
+
+
+@pytest.mark.parametrize("body", [{"candidates": []}, {"pc_id": None, "candidates": []}])
+def test_candidates_to_the_offer_url_need_a_pc_id(client: TestClient, body: dict[str, Any]) -> None:
+    assert_problem(client.patch(OFFER, json=body), 422)
 
 
 def test_ice_candidates_reach_the_call(client: TestClient, starter: FakeStarter) -> None:
     call_id = offer(client).json()["call_id"]
-    candidates: list[dict[str, Any]] = [
-        {
-            "candidate": "candidate:1 1 udp 2122260223 127.0.0.1 50000 typ host",
-            "sdp_mid": "0",
-            "sdp_mline_index": 0,
-        },
-        {"candidate": "", "sdp_mid": "0", "sdp_mline_index": 0},
-    ]
 
-    response = client.patch(f"/api/v1/calls/{call_id}", json={"candidates": candidates})
+    response = client.patch(f"/api/v1/calls/{call_id}", json={"candidates": CANDIDATES})
 
     assert response.status_code == 204
-    assert starter.sessions[0].candidates == [IceCandidate(**c) for c in candidates]
+    assert starter.sessions[0].candidates == [IceCandidate(**c) for c in CANDIDATES]
 
 
 def test_ending_a_call_closes_it_and_frees_the_slot(

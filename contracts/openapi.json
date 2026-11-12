@@ -169,7 +169,7 @@
             }
           },
           "400": {
-            "description": "The SDP offer could not be used.",
+            "description": "The SDP offer could not be used, or it renegotiates a call.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -200,6 +200,59 @@
           },
           "503": {
             "description": "A voice dependency is not ready (`/problems/voice-unavailable`); `unavailable` lists which.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem document (RFC 9457)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "calls"
+        ],
+        "summary": "Add ICE candidates to the call the offer started",
+        "description": "Where Pipecat's small-WebRTC transport sends the candidates it gathers after the offer: the offer's URL, with the call in the body as `pc_id`.",
+        "operationId": "calls_add_ice_candidates_to_offer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PeerConnectionCandidates"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No active call has this id.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -365,6 +418,11 @@
             "title": "Call Id",
             "description": "Id of the call for ICE candidates and ending it."
           },
+          "pc_id": {
+            "type": "string",
+            "title": "Pc Id",
+            "description": "The same id, under the name Pipecat's transport reads."
+          },
           "sdp": {
             "type": "string",
             "title": "Sdp",
@@ -379,6 +437,7 @@
         "type": "object",
         "required": [
           "call_id",
+          "pc_id",
           "sdp",
           "type"
         ],
@@ -398,8 +457,29 @@
             "const": "offer",
             "title": "Type"
           },
-          "settings": {
-            "$ref": "#/components/schemas/CallSettingsIn"
+          "pc_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "description": "The id the offer answered with."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pc Id",
+            "description": "Null for a new call; renegotiating an existing one is not supported."
+          },
+          "restart_pc": {
+            "type": "boolean",
+            "title": "Restart Pc",
+            "description": "Must be false: peer connections are not restarted.",
+            "default": false
+          },
+          "requestData": {
+            "$ref": "#/components/schemas/CallSettingsIn",
+            "description": "The settings of the call."
           }
         },
         "additionalProperties": false,
@@ -407,9 +487,10 @@
         "required": [
           "sdp",
           "type",
-          "settings"
+          "requestData"
         ],
-        "title": "CallOffer"
+        "title": "CallOffer",
+        "description": "An offer in the request shape of Pipecat's small-WebRTC transport.\n\nThe transport posts `{sdp, type, pc_id, restart_pc, requestData}` and nests the\ncaller's own data under `requestData`, here the call settings."
       },
       "CallSettingsIn": {
         "properties": {
@@ -671,6 +752,32 @@
           "version"
         ],
         "title": "Liveness"
+      },
+      "PeerConnectionCandidates": {
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/IceCandidateIn"
+            },
+            "type": "array",
+            "maxItems": 64,
+            "title": "Candidates"
+          },
+          "pc_id": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Pc Id",
+            "description": "The id the offer answered with."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "candidates",
+          "pc_id"
+        ],
+        "title": "PeerConnectionCandidates",
+        "description": "Candidates sent to the offer URL, as Pipecat's transport does: the call is in the body."
       },
       "Readiness": {
         "properties": {

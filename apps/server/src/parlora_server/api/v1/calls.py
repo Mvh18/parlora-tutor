@@ -43,6 +43,9 @@ router = APIRouter(prefix="/calls", tags=["calls"])
 
 LanguageField = Annotated[str, Field(pattern=r"^[a-z]{2}$", examples=["en"])]
 CallId = Annotated[str, Path(max_length=64, description="The id the offer answered with.")]
+PeerConnectionId = Annotated[
+    str, Field(max_length=64, description="The id the offer answered with.")
+]
 
 
 class CallSettingsIn(BaseModel):
@@ -60,15 +63,31 @@ class CallSettingsIn(BaseModel):
 
 
 class CallOffer(BaseModel):
+    """An offer in the request shape of Pipecat's small-WebRTC transport.
+
+    The transport posts `{sdp, type, pc_id, restart_pc, requestData}` and nests the
+    caller's own data under `requestData`, here the call settings.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
     sdp: str = Field(min_length=1, max_length=MAX_SDP_LENGTH, description="SDP offer.")
     type: Literal["offer"]
-    settings: CallSettingsIn
+    pc_id: PeerConnectionId | None = Field(
+        default=None,
+        description="Null for a new call; renegotiating an existing one is not supported.",
+    )
+    restart_pc: bool = Field(
+        default=False, description="Must be false: peer connections are not restarted."
+    )
+    request_data: CallSettingsIn = Field(
+        alias="requestData", description="The settings of the call."
+    )
 
 
 class CallAnswer(BaseModel):
     call_id: str = Field(description="Id of the call for ICE candidates and ending it.")
+    pc_id: str = Field(description="The same id, under the name Pipecat's transport reads.")
     sdp: str = Field(description="SDP answer.")
     type: Literal["answer"]
 
@@ -89,11 +108,17 @@ class IceCandidates(BaseModel):
     candidates: list[IceCandidateIn] = Field(max_length=MAX_CANDIDATES)
 
 
+class PeerConnectionCandidates(IceCandidates):
+    """Candidates sent to the offer URL, as Pipecat's transport does: the call is in the body."""
+
+    pc_id: PeerConnectionId
+
+
 def _invalid(field: str, message: str) -> ProblemError:
     return ProblemError(
         422,
         "The request is not valid.",
-        extensions={"errors": [{"loc": ["body", "settings", field], "msg": message}]},
+        extensions={"errors": [{"loc": ["body", "requestData", field], "msg": message}]},
     )
 
 
@@ -127,7 +152,7 @@ def session_settings(body: CallSettingsIn, languages: LanguageRegistry) -> Sessi
     "/offer",
     summary="Start a call from a WebRTC offer",
     responses={
-        400: {"description": "The SDP offer could not be used."},
+        400: {"description": "The SDP offer could not be used, or it renegotiates a call."},
         409: {"description": f"The server holds its maximum number of calls (`{CALL_LIMIT}`)."},
         413: {"description": "The request body is too large."},
         503: {
@@ -140,7 +165,9 @@ def session_settings(body: CallSettingsIn, languages: LanguageRegistry) -> Sessi
 )
 async def offer(request: Request, body: CallOffer) -> CallAnswer:
     state = request.app.state
-    settings = session_settings(body.settings, state.language_registry)
+    settings = session_settings(body.request_data, state.language_registry)
+    if body.pc_id is not None or body.restart_pc:
+        raise ProblemError(400, "Renegotiating a call is not supported; start a new call.")
     voice: VoiceRuntime = state.voice
     unavailable = voice.unavailable()
     if unavailable:
@@ -173,7 +200,32 @@ async def offer(request: Request, body: CallOffer) -> CallAnswer:
         ) from None
     except InvalidOfferError:
         raise ProblemError(400, "The SDP offer could not be used.") from None
-    return CallAnswer(call_id=call_id, sdp=answer.sdp, type="answer")
+    return CallAnswer(call_id=call_id, pc_id=call_id, sdp=answer.sdp, type="answer")
+
+
+async def _add_candidates(request: Request, call_id: str, body: IceCandidates) -> Response:
+    calls: CallRegistry = request.app.state.calls
+    candidates = [IceCandidate(c.candidate, c.sdp_mid, c.sdp_mline_index) for c in body.candidates]
+    try:
+        await calls.add_ice_candidates(call_id, candidates)
+    except UnknownCallError:
+        raise ProblemError(404, "No active call has this id.") from None
+    return Response(status_code=204)
+
+
+# Declared before `/{call_id}`, which would otherwise take "offer" as a call id.
+@router.patch(
+    "/offer",
+    summary="Add ICE candidates to the call the offer started",
+    description=(
+        "Where Pipecat's small-WebRTC transport sends the candidates it gathers after "
+        "the offer: the offer's URL, with the call in the body as `pc_id`."
+    ),
+    status_code=204,
+    responses={404: {"description": "No active call has this id."}},
+)
+async def add_ice_candidates_to_offer(request: Request, body: PeerConnectionCandidates) -> Response:
+    return await _add_candidates(request, body.pc_id, body)
 
 
 @router.patch(
@@ -183,13 +235,7 @@ async def offer(request: Request, body: CallOffer) -> CallAnswer:
     responses={404: {"description": "No active call has this id."}},
 )
 async def add_ice_candidates(request: Request, call_id: CallId, body: IceCandidates) -> Response:
-    calls: CallRegistry = request.app.state.calls
-    candidates = [IceCandidate(c.candidate, c.sdp_mid, c.sdp_mline_index) for c in body.candidates]
-    try:
-        await calls.add_ice_candidates(call_id, candidates)
-    except UnknownCallError:
-        raise ProblemError(404, "No active call has this id.") from None
-    return Response(status_code=204)
+    return await _add_candidates(request, call_id, body)
 
 
 @router.delete(

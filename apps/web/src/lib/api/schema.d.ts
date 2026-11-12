@@ -86,7 +86,11 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Add ICE candidates to the call the offer started
+         * @description Where Pipecat's small-WebRTC transport sends the candidates it gathers after the offer: the offer's URL, with the call in the body as `pc_id`.
+         */
+        patch: operations["calls_add_ice_candidates_to_offer"];
         trace?: never;
     };
     "/api/v1/calls/{call_id}": {
@@ -119,6 +123,11 @@ export interface components {
              */
             call_id: string;
             /**
+             * Pc Id
+             * @description The same id, under the name Pipecat's transport reads.
+             */
+            pc_id: string;
+            /**
              * Sdp
              * @description SDP answer.
              */
@@ -129,7 +138,13 @@ export interface components {
              */
             type: "answer";
         };
-        /** CallOffer */
+        /**
+         * CallOffer
+         * @description An offer in the request shape of Pipecat's small-WebRTC transport.
+         *
+         *     The transport posts `{sdp, type, pc_id, restart_pc, requestData}` and nests the
+         *     caller's own data under `requestData`, here the call settings.
+         */
         CallOffer: {
             /**
              * Sdp
@@ -141,7 +156,19 @@ export interface components {
              * @constant
              */
             type: "offer";
-            settings: components["schemas"]["CallSettingsIn"];
+            /**
+             * Pc Id
+             * @description Null for a new call; renegotiating an existing one is not supported.
+             */
+            pc_id?: string | null;
+            /**
+             * Restart Pc
+             * @description Must be false: peer connections are not restarted.
+             * @default false
+             */
+            restart_pc: boolean;
+            /** @description The settings of the call. */
+            requestData: components["schemas"]["CallSettingsIn"];
         };
         /** CallSettings */
         CallSettingsIn: {
@@ -263,6 +290,19 @@ export interface components {
              * @description Version of the running server.
              */
             version: string;
+        };
+        /**
+         * PeerConnectionCandidates
+         * @description Candidates sent to the offer URL, as Pipecat's transport does: the call is in the body.
+         */
+        PeerConnectionCandidates: {
+            /** Candidates */
+            candidates: components["schemas"]["IceCandidateIn"][];
+            /**
+             * Pc Id
+             * @description The id the offer answered with.
+             */
+            pc_id: string;
         };
         /** Readiness */
         Readiness: {
@@ -494,7 +534,7 @@ export interface operations {
                     "application/json": components["schemas"]["CallAnswer"];
                 };
             };
-            /** @description The SDP offer could not be used. */
+            /** @description The SDP offer could not be used, or it renegotiates a call. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -532,6 +572,55 @@ export interface operations {
             };
             /** @description A voice dependency is not ready (`/problems/voice-unavailable`); `unavailable` lists which. */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem document (RFC 9457) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    calls_add_ice_candidates_to_offer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PeerConnectionCandidates"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No active call has this id. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
