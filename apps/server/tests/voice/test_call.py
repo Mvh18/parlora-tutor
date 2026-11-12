@@ -19,7 +19,8 @@ from parlora_core.languages import LanguageCode
 from parlora_core.learner import LearnerRef
 from parlora_core.session import SessionSettings
 from parlora_server.config import Settings
-from parlora_server.voice.call import ActivityObserver, WebRTCCallStarter
+from parlora_server.voice.call import ActivityObserver, WebRTCCallStarter, latency_messages
+from parlora_server.voice.metrics import TurnLatency
 from parlora_server.voice.registry import (
     CallHooks,
     IceCandidate,
@@ -127,3 +128,28 @@ def test_the_activity_observer_reports_speech_starts_only() -> None:
 
     asyncio.run(scenario())
     assert seen == ["activity", "activity"]
+
+
+def test_turn_latency_is_sent_to_the_client_as_a_server_message() -> None:
+    class Rtvi:
+        def __init__(self) -> None:
+            self.sent: list[Any] = []
+
+        async def send_server_message(self, data: Any) -> None:
+            self.sent.append(data)
+
+    rtvi = Rtvi()
+    send = latency_messages(lambda: rtvi)
+
+    asyncio.run(send(TurnLatency(0.9, 0.1, 0.3, 0.2, interrupted=False)))
+
+    assert rtvi.sent == [
+        {
+            "type": "turn-latency",
+            "voice_to_voice_ms": 900,
+            "stt_ms": 100,
+            "llm_ttft_ms": 300,
+            "tts_first_audio_ms": 200,
+            "interrupted": False,
+        }
+    ]
