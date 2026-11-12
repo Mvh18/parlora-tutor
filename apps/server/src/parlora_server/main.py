@@ -27,6 +27,7 @@ from parlora_server.api.problems import PROBLEM_JSON, Problem, install_problem_h
 from parlora_server.api.v1 import calls, catalog, health
 from parlora_server.config import Settings, load_settings
 from parlora_server.db import Database
+from parlora_server.logs import configure_logging
 from parlora_server.voice.registry import CallRegistry, CallStarter
 from parlora_server.voice.runtime import VOICE_CHECKS, VoiceRuntime
 
@@ -51,6 +52,7 @@ def create_app(
     `voice` and `call_starter` replace the real models and WebRTC calls in tests.
     """
     settings = settings if settings is not None else load_settings()
+    configure_logging(settings.log_level)
     database = Database(settings.database)
     voice = voice if voice is not None else VoiceRuntime.from_settings(settings)
     registry = CallRegistry(

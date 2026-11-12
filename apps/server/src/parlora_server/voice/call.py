@@ -5,12 +5,14 @@ call's pipeline over the shared voice models and runs it in the background. The
 peer connection uses host candidates only (no STUN or TURN), as ADR 0003
 measured from the browser to the container. Pipecat's own idle timeout is off:
 the call registry ends idle calls, fed by the activity this observer reports.
+The turn observer logs every turn's latency, sends it to the client as an RTVI
+server message and logs the call summary when the pipeline ends.
 """
 
 import asyncio
 import logging
 from collections.abc import Callable, Sequence
-from typing import Any
+from typing import Any, Protocol
 
 from pipecat.frames.frames import BotStartedSpeakingFrame, UserStartedSpeakingFrame
 from pipecat.observers.base_observer import BaseObserver, FramePushed
@@ -24,6 +26,7 @@ from parlora_core.session import SessionSettings
 from parlora_server.adapters.stt.whisper import SAMPLE_RATE as STT_SAMPLE_RATE
 from parlora_server.adapters.tts.kokoro import SAMPLE_RATE as TTS_SAMPLE_RATE
 from parlora_server.config import Settings
+from parlora_server.voice.metrics import LatencySink, TurnLatency, TurnMetricsObserver
 from parlora_server.voice.pipeline import build_pipeline
 from parlora_server.voice.prompts import load_prompt
 from parlora_server.voice.registry import (
@@ -49,6 +52,19 @@ class ActivityObserver(BaseObserver):
     async def on_push_frame(self, data: FramePushed) -> None:
         if isinstance(data.frame, ACTIVITY_FRAMES):
             self._on_activity()
+
+
+class ServerMessages(Protocol):
+    async def send_server_message(self, data: Any) -> None: ...
+
+
+def latency_messages(rtvi: Callable[[], ServerMessages]) -> LatencySink:
+    """Sends each turn's latency to the client through the worker's RTVI processor."""
+
+    async def send(turn: TurnLatency) -> None:
+        await rtvi().send_server_message(turn.client_message())
+
+    return send
 
 
 class WebRTCCall:
@@ -115,6 +131,7 @@ class WebRTCCallStarter:
             vad=vad,
             turn_analyzer=turn_analyzer,
         )
+        metrics = TurnMetricsObserver(on_latency=latency_messages(lambda: worker.rtvi))
         worker = PipelineWorker(
             call.pipeline,
             params=PipelineParams(
@@ -123,7 +140,7 @@ class WebRTCCallStarter:
                 enable_metrics=True,
             ),
             idle_timeout_secs=None,
-            observers=[ActivityObserver(hooks.activity)],
+            observers=[ActivityObserver(hooks.activity), metrics],
         )
 
         async def on_client_disconnected(*_: Any) -> None:
@@ -134,5 +151,10 @@ class WebRTCCallStarter:
         runner = WorkerRunner(handle_sigint=False)
         await runner.add_workers(worker)
         task = asyncio.create_task(runner.run(), name="call pipeline")
-        task.add_done_callback(lambda _: hooks.ended())
+
+        def on_done(_: asyncio.Task[None]) -> None:
+            metrics.log_summary()
+            hooks.ended()
+
+        task.add_done_callback(on_done)
         return WebRTCCall(connection, worker, task), SdpDescription(answer["sdp"], answer["type"])
