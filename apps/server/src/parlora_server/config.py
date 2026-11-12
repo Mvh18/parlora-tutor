@@ -197,6 +197,13 @@ class Settings(BaseSettings):
         default=Path("models"),
         description="Directory for downloaded model weights (Kokoro); /models in the image.",
     )
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field(
+        default="INFO",
+        description=(
+            "Log level of the server and of Pipecat; turn text (transcripts, replies) "
+            "is logged only at DEBUG."
+        ),
+    )
     cors_origins: list[str] = Field(
         default_factory=lambda: ["http://localhost:3000"],
         description="Browser origins allowed to call the API (JSON list, no wildcard).",
