@@ -3,7 +3,7 @@
   "info": {
     "title": "Parlora API",
     "description": "Versioned HTTP API of Parlora, a local-first voice tutor. Every error is an RFC 9457 problem document (`application/problem+json`).",
-    "version": "0.4.0"
+    "version": "0.5.0"
   },
   "paths": {
     "/api/v1/health/live": {
@@ -198,8 +198,8 @@
               }
             }
           },
-          "503": {
-            "description": "A voice dependency is not ready (`/problems/voice-unavailable`); `unavailable` lists which.",
+          "422": {
+            "description": "Validation Error",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -208,8 +208,8 @@
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "503": {
+            "description": "A voice dependency is not ready (`/problems/voice-unavailable`); `unavailable` lists which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -643,8 +643,8 @@
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 64.0,
-                "minimum": 0.0
+                "maximum": 64,
+                "minimum": 0
               },
               {
                 "type": "null"
