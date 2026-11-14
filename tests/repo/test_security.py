@@ -44,6 +44,14 @@ def test_dependabot_covers_all_ecosystems_with_cooldown(repo_root: Path) -> None
     assert not without_cooldown, f"ecosystems without cooldown: {without_cooldown}"
 
 
+def test_dependabot_version_updates_are_monthly(repo_root: Path) -> None:
+    config = load_yaml(repo_root / ".github" / "dependabot.yml")
+    not_monthly = [
+        u["package-ecosystem"] for u in config["updates"] if u["schedule"]["interval"] != "monthly"
+    ]
+    assert not not_monthly, f"ecosystems not on a monthly schedule: {not_monthly}"
+
+
 def test_security_policy_routes_privately(repo_root: Path) -> None:
     text = (repo_root / "SECURITY.md").read_text(encoding="utf-8")
     assert "private vulnerability reporting" in text.lower()
