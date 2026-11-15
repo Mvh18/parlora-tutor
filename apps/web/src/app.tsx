@@ -1,3 +1,4 @@
+import { CallPanel } from "./components/call-panel";
 import { StatusBadge } from "./components/status-badge";
 import { API_BASE_URL } from "./lib/api/client";
 import { useServerStatus } from "./lib/use-server-status";
@@ -13,6 +14,7 @@ export function App() {
         learner-facing app is Parlora Hub.
       </p>
       <StatusBadge status={status} />
+      <CallPanel />
       <p className="page__meta">
         API: <code>{API_BASE_URL}</code>
       </p>
