@@ -166,6 +166,9 @@ def test_one_turn_of_audio_becomes_one_transcription() -> None:
         texts = []
         async for frame in service.run_stt(b"\x00\x00" * 16_000):
             assert isinstance(frame, TranscriptionFrame)
+            # Whisper transcribes the whole segment: the text is final, so turn
+            # detection need not wait out its safety-net timeout.
+            assert frame.finalized is True
             texts.append(frame.text)
         return texts
 

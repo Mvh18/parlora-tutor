@@ -89,7 +89,11 @@ class SpeechToTextService(SegmentedSTTService):
         finally:
             await self.stop_processing_metrics()
         if transcript.text:
-            yield TranscriptionFrame(transcript.text, self._user_id, time_now_iso8601())
+            # A whole segment transcribed at once is final: marking it lets the turn
+            # end as soon as Smart Turn agrees, instead of after the STT safety net.
+            yield TranscriptionFrame(
+                transcript.text, self._user_id, time_now_iso8601(), finalized=True
+            )
 
 
 def _text(content: Any) -> str | None:
