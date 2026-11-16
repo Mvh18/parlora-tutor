@@ -12,6 +12,10 @@ one INFO record with:
   processing time, LLM time to first token and text-to-speech time to first
   audio Pipecat's metrics report in the turn.
 - `interrupted`: the learner spoke before the reply ended (barge-in).
+- `turn_end_s`, `end_by`, `p_complete` (log only, not sent to the client): how
+  long after the learner fell silent the turn was released, whether Smart Turn
+  released it (`model`) or the silence timeout did (`fallback`), and Smart Turn's
+  last probability that the learner had finished. They tune turn detection (9.2).
 
 A turn ends when the bot stops speaking or when the learner interrupts the reply;
 a reply interrupted before any audio has no voice-to-voice latency. If the output
@@ -41,7 +45,7 @@ from pipecat.frames.frames import (
     VADUserStartedSpeakingFrame,
     VADUserStoppedSpeakingFrame,
 )
-from pipecat.metrics.metrics import ProcessingMetricsData, TTFBMetricsData
+from pipecat.metrics.metrics import ProcessingMetricsData, TTFBMetricsData, TurnMetricsData
 from pipecat.observers.base_observer import BaseObserver, FramePushed
 from pipecat.processors.frame_processor import FrameDirection
 from pipecat.services.llm_service import LLMService
@@ -63,6 +67,9 @@ class TurnLatency:
     llm_ttft_s: float | None
     tts_first_audio_s: float | None
     interrupted: bool
+    turn_end_s: float | None = None
+    end_by: str | None = None
+    p_complete: float | None = None
 
     def client_message(self) -> dict[str, Any]:
         """The server message sent to the client once the bot starts speaking."""
@@ -112,6 +119,16 @@ def _milliseconds(turn: TurnLatency) -> dict[str, Any]:
     }
 
 
+def _log_values(turn: TurnLatency) -> dict[str, Any]:
+    """The client's values plus how the turn was detected, for the log only."""
+    return {
+        **_milliseconds(turn),
+        "turn_end_ms": None if turn.turn_end_s is None else round(turn.turn_end_s * 1000),
+        "end_by": turn.end_by,
+        "p_complete": None if turn.p_complete is None else round(turn.p_complete, 2),
+    }
+
+
 def _fields(values: dict[str, Any]) -> str:
     return " ".join(f"{key}={'-' if value is None else value}" for key, value in values.items())
 
@@ -127,6 +144,9 @@ class _Turn:
     llm_ttft_s: float | None = None
     tts_first_audio_s: float | None = None
     bot_speaking: bool = False
+    turn_end_s: float | None = None
+    # Smart Turn's last verdict in the turn: (is_complete, probability).
+    prediction: tuple[bool, float] | None = None
     said: list[str] = field(default_factory=list)
     answered: list[str] = field(default_factory=list)
 
@@ -137,7 +157,15 @@ class _Turn:
             self.llm_ttft_s,
             self.tts_first_audio_s,
             interrupted,
+            turn_end_s=self.turn_end_s,
+            end_by=self._end_by(),
+            p_complete=None if self.prediction is None else self.prediction[1],
         )
+
+    def _end_by(self) -> str | None:
+        if not self.released or self.prediction is None:
+            return None
+        return "model" if self.prediction[0] else "fallback"
 
 
 LatencySink = Callable[[TurnLatency], Coroutine[Any, Any, None]]
@@ -173,7 +201,9 @@ class TurnMetricsObserver(BaseObserver):
         elif turn is None:
             return
         elif isinstance(frame, UserStoppedSpeakingFrame):
-            turn.released = True
+            if not turn.released:
+                turn.released = True
+                turn.turn_end_s = max(0.0, self._clock() - turn.user_stopped_at)
         elif isinstance(frame, MetricsFrame):
             _take_metrics(turn, frame, data.source)
         elif isinstance(frame, BotStartedSpeakingFrame):
@@ -220,7 +250,7 @@ class TurnMetricsObserver(BaseObserver):
         self._turn = None
         result = turn.result(interrupted=interrupted)
         self.turns.append(result)
-        values = _milliseconds(result)
+        values = _log_values(result)
         logger.info("turn %s", _fields(values), extra={"turn_latency": values})
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(
@@ -235,7 +265,9 @@ def _first_positive(current: float | None, value: float) -> float | None:
 
 def _take_metrics(turn: _Turn, frame: MetricsFrame, source: Any) -> None:
     for data in frame.data:
-        if isinstance(source, STTService) and isinstance(data, ProcessingMetricsData):
+        if isinstance(data, TurnMetricsData):
+            turn.prediction = (data.is_complete, data.probability)
+        elif isinstance(source, STTService) and isinstance(data, ProcessingMetricsData):
             turn.stt_s = _first_positive(turn.stt_s, data.value)
         elif isinstance(source, LLMService) and isinstance(data, TTFBMetricsData):
             turn.llm_ttft_s = _first_positive(turn.llm_ttft_s, data.value)
