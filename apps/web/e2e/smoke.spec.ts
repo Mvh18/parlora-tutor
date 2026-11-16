@@ -7,7 +7,7 @@ test("the dev client shows a healthy server and passes axe", async ({ page }) =>
 
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Parlora Tutor");
-  await expect(page.getByRole("status")).toHaveAttribute("data-status", "healthy");
+  await expect(page.locator(".status-badge")).toHaveAttribute("data-status", "healthy");
 
   const { violations } = await new AxeBuilder({ page }).analyze();
   const blocking = violations.filter((v) => v.impact === "serious" || v.impact === "critical");
