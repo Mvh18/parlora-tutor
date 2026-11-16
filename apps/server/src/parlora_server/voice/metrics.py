@@ -22,7 +22,10 @@ a reply interrupted before any audio has no voice-to-voice latency. If the outpu
 runs dry between two clauses long enough for Pipecat to report the bot stopped,
 the turn ends there: its latency is already measured, but a barge-in after that
 gap is not flagged. When the call
-ends, `summary()` gives the turn count and the p50 and p95 voice-to-voice latency.
+ends, `summary()` gives the turn count and the p50 and p95 voice-to-voice latency,
+over all turns and over the turns Smart Turn released (`model_*`, the Phase 1
+target), and the count and median wait of the turns the silence timeout released
+(`fallback_*`: pauses Smart Turn judged unfinished, where waiting is the point).
 
 What the learner said and the tutor answered is logged only at DEBUG. The record
 carries the numbers both in its message and as `extra` attributes.
@@ -83,6 +86,11 @@ class CallSummary:
     interrupted: int
     p50_s: float | None
     p95_s: float | None
+    model_turns: int = 0
+    model_p50_s: float | None = None
+    model_p95_s: float | None = None
+    fallback_turns: int = 0
+    fallback_wait_p50_s: float | None = None
 
 
 def percentile(values: Sequence[float], q: float) -> float:
@@ -96,13 +104,26 @@ def percentile(values: Sequence[float], q: float) -> float:
 
 
 def summarise(turns: Sequence[TurnLatency]) -> CallSummary:
+    def pct(values: Sequence[float], q: float) -> float | None:
+        return percentile(values, q) if values else None
+
     latencies = [t.voice_to_voice_s for t in turns if t.voice_to_voice_s is not None]
+    model = [
+        t.voice_to_voice_s for t in turns if t.end_by == "model" and t.voice_to_voice_s is not None
+    ]
+    fallback = [t for t in turns if t.end_by == "fallback"]
+    waits = [t.turn_end_s for t in fallback if t.turn_end_s is not None]
     return CallSummary(
         turns=len(turns),
         measured=len(latencies),
         interrupted=sum(t.interrupted for t in turns),
-        p50_s=percentile(latencies, 50) if latencies else None,
-        p95_s=percentile(latencies, 95) if latencies else None,
+        p50_s=pct(latencies, 50),
+        p95_s=pct(latencies, 95),
+        model_turns=len(model),
+        model_p50_s=pct(model, 50),
+        model_p95_s=pct(model, 95),
+        fallback_turns=len(fallback),
+        fallback_wait_p50_s=pct(waits, 50),
     )
 
 
@@ -222,12 +243,21 @@ class TurnMetricsObserver(BaseObserver):
     def log_summary(self) -> CallSummary:
         """Log the call summary at INFO and return it."""
         summary = self.summary()
+
+        def ms(seconds: float | None) -> int | None:
+            return None if seconds is None else round(seconds * 1000)
+
         values = {
             "turns": summary.turns,
             "measured": summary.measured,
             "interrupted": summary.interrupted,
-            "p50_ms": None if summary.p50_s is None else round(summary.p50_s * 1000),
-            "p95_ms": None if summary.p95_s is None else round(summary.p95_s * 1000),
+            "p50_ms": ms(summary.p50_s),
+            "p95_ms": ms(summary.p95_s),
+            "model_turns": summary.model_turns,
+            "model_p50_ms": ms(summary.model_p50_s),
+            "model_p95_ms": ms(summary.model_p95_s),
+            "fallback_turns": summary.fallback_turns,
+            "fallback_wait_p50_ms": ms(summary.fallback_wait_p50_s),
         }
         logger.info("call summary %s", _fields(values), extra={"call_summary": asdict(summary)})
         return summary

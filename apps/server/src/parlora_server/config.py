@@ -147,7 +147,10 @@ class VadSettings(BaseModel):
         default=0.6, ge=0, le=1, description="Minimum volume for a frame to count as speech."
     )
     turn_fallback_secs: float = Field(
-        default=3.0,
+        # Measured 2026-11-15: Smart Turn judges about 4 in 10 learner pauses
+        # unfinished with low probability (0.01-0.32); 1.5 s cut learners while
+        # they were thinking, 3 s felt stuck. 2 s is the chosen compromise (9.2).
+        default=2.0,
         gt=0,
         le=10,
         description="Silence, in seconds, after which a turn ends even if Smart Turn is unsure.",

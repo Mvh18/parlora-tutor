@@ -392,3 +392,44 @@ def test_turn_detection_fields_stay_out_of_the_client_message() -> None:
 
     assert sent
     assert not {"end_by", "p_complete", "turn_end_ms"} & set(sent[0])
+
+
+def test_the_summary_separates_turns_smart_turn_ended_from_fallback_turns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO, logger=LOGGER)
+    clock = Clock()
+    observer = TurnMetricsObserver(clock=clock)
+    # Released by Smart Turn after 0.4-0.6 s: voice to voice is that wait + 0.5 s.
+    for wait in [0.4, 0.5, 0.6]:
+        turn_ended_after(observer, clock, predicted(True, 0.9), wait=wait)
+        clock.now += 1
+    # Released by the silence timeout: the learner paused, Smart Turn said unfinished.
+    for wait in [2.2, 2.4]:
+        turn_ended_after(observer, clock, predicted(False, 0.1), wait=wait)
+        clock.now += 1
+
+    summary = observer.log_summary()
+
+    assert summary.model_turns == 3
+    assert summary.model_p50_s == pytest.approx(1.0)
+    assert summary.model_p95_s == pytest.approx(1.09)
+    assert summary.fallback_turns == 2
+    assert summary.fallback_wait_p50_s == pytest.approx(2.3)
+    assert summary.p95_s is not None
+    assert summary.p95_s > 2.5, "all turns are still reported"
+    (record,) = [r for r in caplog.records if hasattr(r, "call_summary")]
+    message = record.getMessage()
+    assert "model_turns=3 model_p50_ms=1000 model_p95_ms=1090" in message
+    assert "fallback_turns=2 fallback_wait_p50_ms=2300" in message
+
+
+def test_a_summary_without_detection_data_has_no_model_percentiles() -> None:
+    clock = Clock()
+    observer = TurnMetricsObserver(clock=clock)
+    one_turn(observer, clock)
+
+    summary = observer.summary()
+
+    assert (summary.model_turns, summary.model_p50_s, summary.model_p95_s) == (0, None, None)
+    assert (summary.fallback_turns, summary.fallback_wait_p50_s) == (0, None)
