@@ -3,8 +3,10 @@
 The starter answers the client's offer with a new peer connection, builds the
 call's pipeline over the shared voice models and runs it in the background. The
 peer connection uses host candidates only (no STUN or TURN), as ADR 0003
-measured from the browser to the container. Pipecat's own idle timeout is off:
-the call registry ends idle calls, fed by the activity this observer reports.
+measured from the browser to the container; with `PARLORA_VOICE__ICE_HOST` set
+they bind inside the published UDP range and advertise that address (D11).
+Pipecat's own idle timeout is off: the call registry ends idle calls, fed by
+the activity this observer reports.
 The turn observer logs every turn's latency, sends it to the client as an RTVI
 server message and logs the call summary when the pipeline ends.
 """
@@ -26,6 +28,7 @@ from parlora_core.session import SessionSettings
 from parlora_server.adapters.stt.whisper import SAMPLE_RATE as STT_SAMPLE_RATE
 from parlora_server.adapters.tts.kokoro import SAMPLE_RATE as TTS_SAMPLE_RATE
 from parlora_server.config import Settings
+from parlora_server.voice.ice import install_ice_port_range, rewrite_host_candidates
 from parlora_server.voice.metrics import LatencySink, TurnLatency, TurnMetricsObserver
 from parlora_server.voice.pipeline import build_pipeline
 from parlora_server.voice.prompts import load_prompt
@@ -98,6 +101,8 @@ class WebRTCCallStarter:
     def __init__(self, voice: VoiceRuntime, settings: Settings) -> None:
         self._voice = voice
         self._settings = settings
+        if settings.voice.ice_host is not None:
+            install_ice_port_range(settings.voice.ice_ports)
 
     async def __call__(
         self, offer: SdpDescription, settings: SessionSettings, hooks: CallHooks
@@ -157,4 +162,8 @@ class WebRTCCallStarter:
             hooks.ended()
 
         task.add_done_callback(on_done)
-        return WebRTCCall(connection, worker, task), SdpDescription(answer["sdp"], answer["type"])
+        sdp = answer["sdp"]
+        ice = self._settings.voice
+        if ice.ice_host is not None:
+            sdp = rewrite_host_candidates(sdp, ice.ice_host, ice.ice_ports)
+        return WebRTCCall(connection, worker, task), SdpDescription(sdp, answer["type"])

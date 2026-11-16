@@ -220,3 +220,58 @@ def test_server_keeps_model_weights_in_a_named_volume(config: dict[str, Any]) ->
 def test_nogpu_turns_the_voice_pipeline_off(repo_root: Path, tmp_path: Path) -> None:
     config = render(repo_root, tmp_path, "compose.yaml", "compose.nogpu.yaml")
     assert config["services"]["server"]["environment"]["PARLORA_VOICE__ENABLED"] == "false"
+
+
+ICE_HOST = "192.0.2.10"  # TEST-NET-1 (RFC 5737)
+
+
+def test_ice_override_publishes_only_the_settings_range_on_the_ice_host(
+    repo_root: Path, tmp_path: Path
+) -> None:
+    from parlora_server.config import Settings
+
+    config = render(
+        repo_root,
+        tmp_path,
+        "compose.yaml",
+        "compose.ice.yaml",
+        env={"PARLORA_VOICE__ICE_HOST": ICE_HOST},
+    )
+
+    # Compose expands a published range into one entry per port.
+    off_loopback = sorted(
+        (name, port["host_ip"], int(port["published"]), int(port["target"]), port["protocol"])
+        for name, service in config["services"].items()
+        for port in service.get("ports", [])
+        if port.get("host_ip") != LOOPBACK
+    )
+    ports = Settings(_env_file=None).voice.ice_ports
+    assert off_loopback == [("server", ICE_HOST, p, p, "udp") for p in ports]
+
+
+def test_ice_override_needs_an_address(repo_root: Path, tmp_path: Path) -> None:
+    empty_env_file = tmp_path / "empty.env"
+    empty_env_file.write_text("", encoding="utf-8")
+    process_env = {
+        k: v for k, v in os.environ.items() if not k.startswith(("PARLORA_", "COMPOSE_"))
+    }
+    result = subprocess.run(
+        [
+            "docker",
+            "compose",
+            "--env-file",
+            str(empty_env_file),
+            "--file",
+            "compose.yaml",
+            "--file",
+            "compose.ice.yaml",
+            "config",
+        ],
+        cwd=repo_root,
+        env=process_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode != 0
+    assert "PARLORA_VOICE__ICE_HOST" in result.stderr
