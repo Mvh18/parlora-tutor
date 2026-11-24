@@ -116,7 +116,8 @@ def test_one_valid_result_per_model(ollama: tuple[str, type[FakeOllama]], tmp_pa
 
     assert run(endpoint, tmp_path, "qwen3:4b", "gemma3:4b") == 0
 
-    files = sorted(tmp_path.glob("*.json"))
+    # Sort past the timestamp prefix: the models may finish in different seconds.
+    files = sorted(tmp_path.glob("*.json"), key=lambda f: f.name.split("-", 1)[1])
     assert [f.name.split("-", 1)[1] for f in files] == ["llm-gemma3-4b.json", "llm-qwen3-4b.json"]
     result = json.loads(files[1].read_text(encoding="utf-8"))
     validate_result(result)
