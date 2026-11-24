@@ -76,7 +76,7 @@ def ports() -> Iterator[range]:
 
 async def _gather_port() -> int:
     """Binds a host socket the way aioice does and returns its port."""
-    loop = aioice.ice.asyncio.get_event_loop()
+    loop = vars(aioice.ice)["asyncio"].get_event_loop()
     transport, _ = await loop.create_datagram_endpoint(
         asyncio.DatagramProtocol, local_addr=("127.0.0.1", 0)
     )
@@ -115,10 +115,10 @@ class TestIcePortRange:
                 s.close()
 
     def test_restores_aioice_and_leaves_other_code_alone(self, ports: range) -> None:
-        original = aioice.ice.asyncio
+        original = vars(aioice.ice)["asyncio"]
         with ice_port_range(ports):
             assert asyncio.get_event_loop_policy() is not None
-            assert aioice.ice.asyncio.Event is asyncio.Event, "other names pass through"
+            assert vars(aioice.ice)["asyncio"].Event is asyncio.Event, "other names pass through"
 
             async def outside_aioice() -> int:
                 loop = asyncio.get_running_loop()
@@ -130,11 +130,11 @@ class TestIcePortRange:
                 return port
 
             assert asyncio.run(outside_aioice()) not in ports
-        assert aioice.ice.asyncio is original
+        assert vars(aioice.ice)["asyncio"] is original
 
     def test_explicit_ports_are_not_redirected(self, ports: range) -> None:
         async def explicit() -> int:
-            loop = aioice.ice.asyncio.get_event_loop()
+            loop = vars(aioice.ice)["asyncio"].get_event_loop()
             port = ports[2]
             transport, _ = await loop.create_datagram_endpoint(
                 asyncio.DatagramProtocol, local_addr=("127.0.0.1", port)

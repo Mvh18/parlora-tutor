@@ -181,7 +181,7 @@ def test_with_an_ice_host_the_answer_advertises_it_inside_the_range(
 ) -> None:
     import aioice.ice
 
-    monkeypatch.setattr(aioice.ice, "asyncio", aioice.ice.asyncio)  # restored afterwards
+    monkeypatch.setattr(aioice.ice, "asyncio", vars(aioice.ice)["asyncio"])  # restored afterwards
     ports = _free_udp_range(8)
     settings = Settings(
         _env_file=None,
