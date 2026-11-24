@@ -119,6 +119,10 @@ bench-tts-container *args:
 bench-memory *models:
     uv run --group bench python -m scripts.bench.memory {{ models }}
 
+# Play the synthetic fixtures as learner turns of a real call (needs the GPU and Ollama; stop the stack first)
+bench-call *args:
+    uv run python -m scripts.bench.call {{ args }}
+
 # Regenerate docs/benchmarks.md from the latest result of each benchmark
 bench-report:
     uv run python -m scripts.bench.report

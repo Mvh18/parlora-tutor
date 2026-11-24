@@ -49,8 +49,8 @@ flowchart LR
     end
     subgraph docker["Docker (local stack)"]
         subgraph server["parlora-server (FastAPI)"]
-            api["/api/v1 — health, catalogue"]
-            voice["Voice pipeline (Phase 1)"]
+            api["/api/v1 — health, catalogue, calls"]
+            voice["Voice pipeline (Pipecat)"]
             core["parlora-core — domain"]
         end
         db[("PostgreSQL")]
@@ -59,10 +59,11 @@ flowchart LR
     hub -- "REST /api/v1" --> api
     dev -- "REST /api/v1" --> api
     hub -. "WebRTC audio + RTVI" .-> voice
+    dev -- "WebRTC audio + RTVI" --> voice
     api --> core
-    voice -.-> core
+    voice --> core
     api --> db
-    voice -. "native chat API" .-> llm
+    voice -- "native chat API" --> llm
 ```
 
 Dashed lines are planned. The domain core is framework-free and the server is
@@ -78,8 +79,10 @@ the [decision records](docs/adr/).
 | OS        | Windows 11 (WSL2), Linux or macOS                             | Windows 11 with Docker Desktop (WSL2)        |
 | Software  | Docker, git, [uv](https://docs.astral.sh/uv/), Node.js 24 LTS | plus the NVIDIA driver with WSL2 GPU support |
 
-Everything that runs on the GPU (Whisper and the language model) is sized to
-fit in 8 GB of VRAM ([ADR 0009](docs/adr/0009-phase-1-llm-and-vram-budget.md)).
+Everything that runs on the GPU (Whisper, Kokoro and the language model) is
+sized to fit in 8 GB of VRAM
+([ADR 0009](docs/adr/0009-phase-1-llm-and-vram-budget.md),
+[ADR 0010](docs/adr/0010-phase-1-voice-pipeline.md)).
 The speech stack makes `just setup` download about 3 GB of Python wheels
 (mostly NVIDIA's CUDA libraries) and the server image about 5 GB; Whisper and
 Kokoro weights (about 2 GB) are downloaded on first start into a Docker volume.
@@ -102,6 +105,26 @@ The server listens on <http://127.0.0.1:8700>:
 Start the dev client with `pnpm --dir apps/web dev` and open
 <http://localhost:3000>. Stop the stack with `uv run just down`. Settings are
 optional; copy [.env.example](.env.example) to `.env` to change them.
+
+### A voice call
+
+1. Start Ollama on the host and pull the conversation model:
+   `ollama pull qwen3:4b-instruct-2507-q4_K_M`.
+2. Run `uv run just up` and wait until
+   <http://127.0.0.1:8700/api/v1/health/ready> reports `stt`, `tts`, `llm` and
+   `vad` as `ok`. The first start downloads the speech weights; loading and
+   warming up the models takes a few minutes.
+3. Run `pnpm --dir apps/web dev`, open <http://localhost:3000>, pick a level
+   and a topic, press **Start call** and allow the microphone. The tutor
+   answers in English; the page shows each turn's latency.
+
+If the call never connects (Docker Desktop on Windows drops the container's
+UDP to the host), set `PARLORA_VOICE__ICE_HOST` in `.env` to the host's LAN
+IPv4 address and start with `uv run just up gpu lan`, which publishes UDP
+ports 40000–40019 on that address only
+([ADR 0003](docs/adr/0003-webrtc-transport-from-docker.md#amendment-2026-11-15)).
+The pipeline, its defaults and the measured latency are in
+[ADR 0010](docs/adr/0010-phase-1-voice-pipeline.md).
 
 ## Project layout
 
@@ -150,6 +173,7 @@ from the first round are in [ADR 0009](docs/adr/0009-phase-1-llm-and-vram-budget
 | `uv run just bench-stt`          | Speech-to-text natively (`-container` in Docker)                 |
 | `uv run just bench-tts`          | Kokoro text-to-speech, `--provider cpu\|cuda` (`-container` too) |
 | `uv run just bench-memory`       | Hard VRAM check with STT and each LLM (after `just up`)          |
+| `uv run just bench-call`         | Synthetic fixtures as learner turns of a real call (stack down)  |
 | `uv run just bench`              | All of the above, then `bench-report`                            |
 
 ## Testing
@@ -170,8 +194,8 @@ excluded in CI.
 
 | Phase | Goal                                                  | Status         |
 | ----- | ----------------------------------------------------- | -------------- |
-| 0     | Project skeleton and component benchmarks             | 🔵 In progress |
-| 1     | Minimal voice loop: speak and hear a reply            | ⚪ Planned     |
+| 0     | Project skeleton and component benchmarks             | ✅ Done        |
+| 1     | Minimal voice loop: speak and hear a reply            | 🔵 In progress |
 | 2     | Tutor behaviour: CEFR-adapted conversation            | ⚪ Planned     |
 | 3     | Written corrections in parallel with the conversation | ⚪ Planned     |
 | 4     | Call view in the dev client                           | ⚪ Planned     |

@@ -22,6 +22,8 @@ def test_documented_budgets() -> None:
         "llm_warm_ttft": 0.4,
         "tts_first_audio": 0.5,
         "tts_rtf": 1.0,
+        "call_model_p50": 1.2,
+        "call_model_p95": 1.5,
     }
     assert all(b.source for b in BUDGETS.values())
 

@@ -47,6 +47,10 @@ def test_missing_block_fails(block: str) -> None:
         validate_result(result)
 
 
+def test_the_smoke_call_is_a_component() -> None:
+    validate_result(sample_result(component="call", variant="native"))
+
+
 @pytest.mark.parametrize(
     ("key", "value", "message"),
     [
