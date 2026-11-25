@@ -15,7 +15,6 @@ VOICE_PACKAGES = {
     "pipecat-ai",
     "faster-whisper",
     "nvidia-cublas-cu12",
-    "nvidia-cudnn-cu12",
     "onnxruntime-gpu",
     "misaki",
     "spacy",
@@ -87,6 +86,23 @@ def test_setup_does_not_install_the_bench_group(repo_root: Path) -> None:
 def test_lockfile_has_no_gpl_g2p_packages(repo_root: Path) -> None:
     names = {p["name"] for p in toml(repo_root / "uv.lock")["package"]}
     assert not names & GPL_G2P, f"GPL G2P packages in uv.lock: {sorted(names & GPL_G2P)}"
+
+
+def test_lockfile_has_one_cudnn_build(repo_root: Path) -> None:
+    # The CUDA 12 and CUDA 13 cuDNN wheels write the same files under nvidia/cudnn;
+    # with both installed the image ends up with a mix that cannot load (ADR 0002).
+    names = {p["name"] for p in toml(repo_root / "uv.lock")["package"]}
+    cudnn = sorted(name for name in names if name.startswith("nvidia-cudnn"))
+    assert cudnn == ["nvidia-cudnn-cu13"], cudnn
+
+
+def test_image_library_path_has_the_cuda_13_wheels(repo_root: Path) -> None:
+    # cuDNN for CUDA 13 loads NVRTC 13 at run time from nvidia/cu13/lib.
+    text = (repo_root / "docker" / "server.Dockerfile").read_text(encoding="utf-8")
+    path = re.search(r"LD_LIBRARY_PATH=(\S+)", text)
+    assert path, "LD_LIBRARY_PATH is not set"
+    entries = {entry.rsplit("site-packages/", 1)[-1] for entry in path.group(1).split(":")}
+    assert {"nvidia/cublas/lib", "nvidia/cudnn/lib", "nvidia/cu13/lib"} <= entries
 
 
 def test_opencv_is_the_headless_build(repo_root: Path) -> None:

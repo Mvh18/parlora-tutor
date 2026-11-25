@@ -22,14 +22,14 @@ Whisper (OpenAI) — model weights and reference code — MIT License. Server.
 faster-whisper (SYSTRAN) and CTranslate2 (OpenNMT) — MIT License. Server.
   https://github.com/SYSTRAN/faster-whisper
 
-NVIDIA CUDA libraries — nvidia-cublas-cu12, nvidia-cudnn-cu12 and
-  nvidia-cuda-nvrtc-cu12 (CUDA 12), and nvidia-cublas, nvidia-cuda-nvrtc,
-  nvidia-cuda-runtime, nvidia-cudnn-cu13, nvidia-cufft, nvidia-curand and
-  nvidia-nvjitlink (CUDA 13) — NVIDIA proprietary licences (NVIDIA Software
-  License Agreement and the CUDA Toolkit End User License Agreement). Server.
-  The CUDA user-space libraries that CTranslate2 (CUDA 12) and onnxruntime-gpu
-  (CUDA 13) load on the GPU, installed as pip wheels from PyPI on the user's
-  machine. They are not redistributed: the
+NVIDIA CUDA libraries — nvidia-cublas-cu12 and nvidia-cuda-nvrtc-cu12
+  (CUDA 12), and nvidia-cublas, nvidia-cuda-nvrtc, nvidia-cuda-runtime,
+  nvidia-cudnn-cu13, nvidia-cufft, nvidia-curand and nvidia-nvjitlink
+  (CUDA 13) — NVIDIA proprietary licences (NVIDIA Software License Agreement
+  and the CUDA Toolkit End User License Agreement). Server.
+  The CUDA user-space libraries that CTranslate2 (cuBLAS for CUDA 12) and
+  onnxruntime-gpu (CUDA 13) load on the GPU; both use the one cuDNN for
+  CUDA 13. Installed as pip wheels from PyPI on the user's machine. They are not redistributed: the
   repository does not contain them and Parlora Tutor does not publish container
   images. The dependency licence check allows them as a reviewed exception
   (docs/adr/0002-server-gpu-runtime-in-docker.md).

@@ -20,8 +20,9 @@ ENV PYTHONUNBUFFERED=1 \
     UV_PYTHON_DOWNLOADS=0 \
     UV_PROJECT_ENVIRONMENT=/opt/venv \
     PATH=/opt/venv/bin:$PATH \
-    # ctranslate2 does not find the cuBLAS/cuDNN wheel libraries by itself (ADR 0002).
-    LD_LIBRARY_PATH=/opt/venv/lib/python3.12/site-packages/nvidia/cublas/lib:/opt/venv/lib/python3.12/site-packages/nvidia/cudnn/lib \
+    # ctranslate2 does not find the cuBLAS/cuDNN wheel libraries by itself, and
+    # cuDNN loads NVRTC 13 from nvidia/cu13/lib at run time (ADR 0002).
+    LD_LIBRARY_PATH=/opt/venv/lib/python3.12/site-packages/nvidia/cublas/lib:/opt/venv/lib/python3.12/site-packages/nvidia/cudnn/lib:/opt/venv/lib/python3.12/site-packages/nvidia/cu13/lib \
     HF_HOME=/models/huggingface \
     PARLORA_MODELS_DIR=/models
 

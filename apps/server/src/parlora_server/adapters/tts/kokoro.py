@@ -310,14 +310,22 @@ class Kokoro:
             # only once they are preloaded (onnxruntime >= 1.21).
             runtime.preload_dlls()
         self.session = runtime.InferenceSession(str(paths["kokoro-v1.0.onnx"]), providers=providers)
-        self.providers: tuple[str, ...] = tuple(self.session.get_providers())
-        self.provider: Provider = "cuda" if CUDA_PROVIDER in self.providers else "cpu"
         if CUDA_PROVIDER in providers and self.provider != "cuda":
             logger.warning(
                 "Kokoro: onnxruntime could not start %s; using %s", CUDA_PROVIDER, CPU_PROVIDER
             )
         self._g2p = g2p(self.fallback)
         self.hashes = {name: weight.sha256 for name, weight in weights.items()}
+
+    @property
+    def providers(self) -> tuple[str, ...]:
+        # Read from the session each time: onnxruntime switches a session to the CPU
+        # by itself when a CUDA kernel fails during `run` (for example, cuDNN failing to load).
+        return tuple(self.session.get_providers())
+
+    @property
+    def provider(self) -> Provider:
+        return "cuda" if CUDA_PROVIDER in self.providers else "cpu"
 
     def phonemize(self, text: str) -> tuple[str, tuple[str, ...]]:
         before = len(self.fallback.words) if self.fallback else 0
@@ -344,7 +352,14 @@ class Kokoro:
             "style": np.asarray(self.voices[voice][len(ids)], dtype=np.float32),
             "speed": np.array([self.speed], dtype=np.float32),
         }
+        before = self.provider
         audio = self.session.run(None, inputs)[0].astype(np.float32).reshape(-1)
+        if before == "cuda" and self.provider != "cuda":
+            logger.warning(
+                "Kokoro: %s failed during inference; onnxruntime now uses %s",
+                CUDA_PROVIDER,
+                ", ".join(self.providers),
+            )
         return Speech(self.trim(audio), phonemes, oov)
 
     def trim(self, audio: Any, frame: int = 240, threshold_db: float = -45.0) -> Any:

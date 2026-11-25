@@ -203,9 +203,16 @@ VOCAB = {"h": 1, "ə": 2, "l": 3, "O": 4}
 
 
 class FakeSession:
-    def __init__(self, path: str, providers: list[str], started: list[str] | None) -> None:
+    def __init__(
+        self,
+        path: str,
+        providers: list[str],
+        started: list[str] | None,
+        fails_over: bool = False,
+    ) -> None:
         self.path, self.requested = path, providers
         self.started = providers if started is None else started
+        self.fails_over = fails_over
         self.inputs: list[dict[str, Any]] = []
 
     def get_providers(self) -> list[str]:
@@ -213,14 +220,19 @@ class FakeSession:
 
     def run(self, outputs: None, inputs: dict[str, Any]) -> list[Any]:
         self.inputs.append(inputs)
+        if self.fails_over:
+            # onnxruntime's fallback when a CUDA kernel fails: set_providers(CPU), run again.
+            self.started = ["CPUExecutionProvider"]
         # silence, a tone as long as the token count, silence
         tone = 0.5 * np.sin(np.linspace(0, 200, 2400 * inputs["tokens"].shape[1]))
         return [np.concatenate([np.zeros(4800), tone, np.zeros(4800)])[None, :]]
 
 
 class FakeRuntime:
-    def __init__(self, available: list[str], started: list[str] | None = None) -> None:
-        self.available, self.started = available, started
+    def __init__(
+        self, available: list[str], started: list[str] | None = None, fails_over: bool = False
+    ) -> None:
+        self.available, self.started, self.fails_over = available, started, fails_over
         self.sessions: list[FakeSession] = []
         self.preloaded = 0
 
@@ -231,7 +243,7 @@ class FakeRuntime:
         return self.available
 
     def InferenceSession(self, path: str, providers: list[str]) -> FakeSession:  # noqa: N802
-        session = FakeSession(path, providers, self.started)
+        session = FakeSession(path, providers, self.started, self.fails_over)
         self.sessions.append(session)
         return session
 
@@ -429,3 +441,22 @@ def test_empty_synthesis_yields_no_audio(
     )
 
     assert asyncio.run(collect(kk.KokoroTextToSpeech(kokoro), "Hello")) == []
+
+
+def test_kokoro_reports_a_cuda_fallback_during_inference(
+    tmp_path: Path, weights: dict[str, kk.Weight], caplog: pytest.LogCaptureFixture
+) -> None:
+    runtime = FakeRuntime(["CUDAExecutionProvider", "CPUExecutionProvider"], fails_over=True)
+    kokoro = make_kokoro(tmp_path, weights, runtime, provider="cuda")
+    started_on = kokoro.provider
+
+    with caplog.at_level(logging.WARNING, logger=kk.__name__):
+        kokoro.synthesize("hello there")
+        kokoro.synthesize("hello again")
+
+    assert (started_on, kokoro.provider) == ("cuda", "cpu")
+    assert kokoro.providers == ("CPUExecutionProvider",)
+    (record,) = caplog.records
+    assert record.levelno == logging.WARNING
+    assert "CUDAExecutionProvider" in record.getMessage()
+    assert "CPUExecutionProvider" in record.getMessage()
