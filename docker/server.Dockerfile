@@ -23,6 +23,8 @@ ENV PYTHONUNBUFFERED=1 \
     # ctranslate2 does not find the cuBLAS/cuDNN wheel libraries by itself, and
     # cuDNN loads NVRTC 13 from nvidia/cu13/lib at run time (ADR 0002).
     LD_LIBRARY_PATH=/opt/venv/lib/python3.12/site-packages/nvidia/cublas/lib:/opt/venv/lib/python3.12/site-packages/nvidia/cudnn/lib:/opt/venv/lib/python3.12/site-packages/nvidia/cu13/lib \
+    # onnxruntime sends 1DS telemetry to Microsoft unless this is set.
+    ORT_DISABLE_TELEMETRY=1 \
     HF_HOME=/models/huggingface \
     PARLORA_MODELS_DIR=/models
 
