@@ -22,8 +22,10 @@ test("the call page starts a call, or says calls are unavailable, and stays loca
     if (url.protocol === "http:" || url.protocol === "https:") hosts.add(url.host);
   });
 
+  // Readiness is 200 with voice disabled (`nogpu`), so read the voice checks themselves.
   const ready = await request.get(`${API}/api/v1/health/ready`);
-  const voiceReady = ready.ok();
+  const { checks } = (await ready.json()) as { checks: Record<string, string> };
+  const voiceReady = ["stt", "tts", "llm", "vad"].every((name) => checks[name] === "ok");
 
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Call the tutor" })).toBeVisible();
