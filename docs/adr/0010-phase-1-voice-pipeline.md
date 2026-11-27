@@ -1,7 +1,7 @@
 # ADR 0010 — Phase 1 voice pipeline, turn detection and measured latency
 
 - **Status:** Accepted
-- **Date:** 2026-11-21
+- **Date:** 2026-11-27
 - **Issue:** #97 (epic #88, minimal voice loop)
 
 ## Context
@@ -73,7 +73,16 @@ real speech, and the numbers measured.
    turn ended and Smart Turn's probability, never what was said.
 6. **The models load and warm up before the server is ready**, one after
    another in the app's lifespan, and Ollama keeps the LLM resident
-   (`keep_alive` -1): no cold start happens inside a turn.
+   (`keep_alive` -1): no cold start happens inside a turn. The LLM's warm-up
+   also sends a one-token chat that starts with the conversation prompt, so
+   Ollama keeps its evaluated prefix: without it the first turn of the first
+   call evaluated the 212-token system prompt from scratch (TTFT about 190 ms
+   instead of about 40 ms). Richer speech-to-text and text-to-speech warm-ups
+   (several sentence lengths, real speech into Whisper) were measured and made
+   no difference, natively, in the container, or after minutes of idle GPU.
+   Each turn's record also logs how long the reply took to reach its first
+   clause and that clause's length in characters, to tell a slow synthesis
+   from a long first clause.
 
 ## Measured latency
 
@@ -111,7 +120,31 @@ the call, speech-to-text went from a median of about 0.64 s to 0.49–0.55 s and
 the Smart Turn p50 from 1.19–1.21 s to 1.13–1.14 s. The fixtures are clean
 synthetic speech, where a wider beam has little to fix.
 
-**5-minute conversation by the maintainer:** _pending (task 9.3)._
+**5-minute conversation by the maintainer** (2026-11-27, 6.4 minutes, in
+the Compose stack with `lan`, Chrome on the same machine, headphones; numbers
+from the server's call summary and turn records, no transcript or audio kept):
+
+| Turns                    | Count | p50         | p95    |
+| ------------------------ | ----- | ----------- | ------ |
+| Released by Smart Turn   | 24    | 1.13 s      | 1.28 s |
+| All measured turns       | 28    | 1.19 s      | 2.61 s |
+| Released by the fallback | 4     | 2.20 s wait | —      |
+
+The target holds: p50 1.13 s ≤ 1.2 s and p95 1.28 s ≤ 1.5 s over the turns
+Smart Turn released, and the tutor's audio played without drop-outs. 36 turns in all: 15 were interrupted, 8 of them before
+any bot audio (the learner went on after a short pause, so they have no
+voice-to-voice latency). Per turn, speech-to-text took 0.24–0.76 s, the LLM's
+first token 0.04–0.10 s, the first clause 0.05–0.19 s after it, and Kokoro's
+first audio 0.09–0.40 s. The first turn of the call took 1.28 s with a 64 ms
+LLM time to first token.
+
+An earlier attempt (2026-11-24) missed the p95 (1.90 s): its first turn took
+2.59 s, with 1.40 s in Kokoro and 173 ms of LLM time to first token. Two causes
+were found and fixed before this run: Kokoro had silently fallen back to the
+CPU in the container because two cuDNN wheels overwrote each other (ADR 0002
+amendment), and the system prompt was not cached (decision 6). That attempt
+was also made with speakers, and the microphone's echo interrupted 15 turns:
+calls need headphones until echo cancellation is checked.
 
 ## Consequences
 
@@ -121,7 +154,8 @@ synthetic speech, where a wider beam has little to fix.
   re-running `just bench-call` and a real call, and updating this record.
 - Thinking pauses cost the learner `TURN_FALLBACK_SECS` of silence before the
   tutor answers; Phase 2 may adapt the wait to the learner's level.
-- Speech-to-text inside a call (0.46–0.75 s) is slower than in the
-  benchmark (p50 0.41 s); it is the next latency improvement, not a blocker.
+- Speech-to-text inside a call (0.24–0.76 s) is slower than in the
+  benchmark (p50 0.41 s) and is now the largest share of a turn; it is the
+  next latency improvement (greedy decoding first), not a blocker.
 - A barge-in after the output runs dry between two clauses is not flagged as
   an interruption, because the turn has already ended there.
