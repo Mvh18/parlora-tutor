@@ -165,7 +165,7 @@ def _free_udp_range(size: int) -> range:
             for port in ports:
                 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 held.append(s)
-                s.bind(("0.0.0.0", port))  # noqa: S104 - probing, closed at once
+                s.bind(("127.0.0.1", port))  # probing on loopback, closed at once
         except OSError:
             continue
         finally:
