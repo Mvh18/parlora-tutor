@@ -46,7 +46,7 @@ exclude-newer = "7 days"
 # Security fixes skip the delay, as Dependabot's cooldown does: pin the cut-off
 # for the patched package to the day of the fix and drop the entry once the
 # release is older than a week.
-exclude-newer-package = { certifi = "2026-10-21T00:00:00Z", virtualenv = "2026-10-21T00:00:00Z", filelock = "2026-10-18T00:00:00Z" }
+exclude-newer-package = {}
 # onnxruntime and onnxruntime-gpu install the same `onnxruntime` module, so the
 # CPU build that Pipecat and faster-whisper ask for is kept only where the server
 # cannot use the GPU build (macOS); elsewhere onnxruntime-gpu provides it.
