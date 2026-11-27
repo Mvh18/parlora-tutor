@@ -70,6 +70,17 @@ def latency_messages(rtvi: Callable[[], ServerMessages]) -> LatencySink:
     return send
 
 
+def pipeline_params() -> PipelineParams:
+    """A call's pipeline: STT and TTS rates, TTFB and usage metrics for the turn observer."""
+    return PipelineParams(
+        audio_in_sample_rate=STT_SAMPLE_RATE,
+        audio_out_sample_rate=TTS_SAMPLE_RATE,
+        enable_metrics=True,
+        # The TTS usage metric is each clause's length: `tts_first_chars` in the log.
+        enable_usage_metrics=True,
+    )
+
+
 class WebRTCCall:
     def __init__(
         self, connection: SmallWebRTCConnection, worker: PipelineWorker, task: asyncio.Task[None]
@@ -139,11 +150,7 @@ class WebRTCCallStarter:
         metrics = TurnMetricsObserver(on_latency=latency_messages(lambda: worker.rtvi))
         worker = PipelineWorker(
             call.pipeline,
-            params=PipelineParams(
-                audio_in_sample_rate=STT_SAMPLE_RATE,
-                audio_out_sample_rate=TTS_SAMPLE_RATE,
-                enable_metrics=True,
-            ),
+            params=pipeline_params(),
             idle_timeout_secs=None,
             observers=[ActivityObserver(hooks.activity), metrics],
         )
