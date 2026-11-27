@@ -20,7 +20,13 @@ from pipecat.frames.frames import (
     VADUserStartedSpeakingFrame,
     VADUserStoppedSpeakingFrame,
 )
-from pipecat.metrics.metrics import ProcessingMetricsData, TTFBMetricsData, TurnMetricsData
+from pipecat.metrics.metrics import (
+    ProcessingMetricsData,
+    TextAggregationMetricsData,
+    TTFBMetricsData,
+    TTSUsageMetricsData,
+    TurnMetricsData,
+)
 from pipecat.observers.base_observer import FramePushed
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
@@ -100,6 +106,10 @@ def one_turn(
     push(observer, MetricsFrame(data=[stt]), SOURCES.stt)
     push(observer, MetricsFrame(data=[TTFBMetricsData(processor="llm", value=0.3)]), SOURCES.llm)
     push(observer, LLMTextFrame(TUTOR_TEXT), SOURCES.llm)
+    clause = TextAggregationMetricsData(processor="tts", value=0.08)
+    push(observer, MetricsFrame(data=[clause]), SOURCES.tts)
+    usage = TTSUsageMetricsData(processor="tts", value=len("Nice!"))
+    push(observer, MetricsFrame(data=[usage]), SOURCES.tts)
     push(observer, MetricsFrame(data=[TTFBMetricsData(processor="tts", value=0.25)]), SOURCES.tts)
     clock.now = stopped_at + latency
     push(observer, BotStartedSpeakingFrame(), direction=FrameDirection.UPSTREAM)
@@ -133,6 +143,8 @@ def test_one_completed_turn_gives_one_info_record_with_the_latencies_and_no_text
         "turn_end_ms": 0,
         "end_by": None,
         "p_complete": None,
+        "llm_first_clause_ms": 80,
+        "tts_first_chars": 5,
     }
     assert "voice_to_voice_ms=900" in record.getMessage()
     logged = " ".join(r.getMessage() for r in caplog.records)
@@ -391,7 +403,37 @@ def test_turn_detection_fields_stay_out_of_the_client_message() -> None:
     turn_ended_after(observer, clock, predicted(True, 0.9), wait=0.3)
 
     assert sent
-    assert not {"end_by", "p_complete", "turn_end_ms"} & set(sent[0])
+    assert not {
+        "end_by",
+        "p_complete",
+        "turn_end_ms",
+        "llm_first_clause_ms",
+        "tts_first_chars",
+    } & set(sent[0])
+
+
+def test_only_the_first_clause_of_the_reply_is_measured() -> None:
+    clock = Clock()
+    observer = TurnMetricsObserver(clock=clock)
+
+    push(observer, VADUserStoppedSpeakingFrame(stop_secs=0.2, timestamp=clock.now))
+    push(observer, UserStoppedSpeakingFrame())
+    for clause_s, chars in ((0.12, 40), (0.05, 18)):
+        push(
+            observer,
+            MetricsFrame(
+                data=[
+                    TextAggregationMetricsData(processor="tts", value=clause_s),
+                    TTSUsageMetricsData(processor="tts", value=chars),
+                ]
+            ),
+            SOURCES.tts,
+        )
+    push(observer, BotStartedSpeakingFrame())
+    push(observer, BotStoppedSpeakingFrame())
+
+    (turn,) = observer.turns
+    assert (turn.llm_first_clause_s, turn.tts_first_chars) == (0.12, 40)
 
 
 def test_the_summary_separates_turns_smart_turn_ended_from_fallback_turns(

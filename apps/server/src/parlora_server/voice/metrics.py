@@ -16,6 +16,10 @@ one INFO record with:
   long after the learner fell silent the turn was released, whether Smart Turn
   released it (`model`) or the silence timeout did (`fallback`), and Smart Turn's
   last probability that the learner had finished. They tune turn detection (9.2).
+- `llm_first_clause_s`, `tts_first_chars` (log only): how long the reply took from
+  its first token to its first complete clause, and that clause's length in
+  characters (a count, never the text). `tts_first_audio_s` starts once the clause
+  reaches the TTS, so these tell a slow synthesis from a long first clause.
 
 A turn ends when the bot stops speaking or when the learner interrupts the reply;
 a reply interrupted before any audio has no voice-to-voice latency. If the output
@@ -48,7 +52,13 @@ from pipecat.frames.frames import (
     VADUserStartedSpeakingFrame,
     VADUserStoppedSpeakingFrame,
 )
-from pipecat.metrics.metrics import ProcessingMetricsData, TTFBMetricsData, TurnMetricsData
+from pipecat.metrics.metrics import (
+    ProcessingMetricsData,
+    TextAggregationMetricsData,
+    TTFBMetricsData,
+    TTSUsageMetricsData,
+    TurnMetricsData,
+)
 from pipecat.observers.base_observer import BaseObserver, FramePushed
 from pipecat.processors.frame_processor import FrameDirection
 from pipecat.services.llm_service import LLMService
@@ -73,6 +83,8 @@ class TurnLatency:
     turn_end_s: float | None = None
     end_by: str | None = None
     p_complete: float | None = None
+    llm_first_clause_s: float | None = None
+    tts_first_chars: int | None = None
 
     def client_message(self) -> dict[str, Any]:
         """The server message sent to the client once the bot starts speaking."""
@@ -147,6 +159,10 @@ def _log_values(turn: TurnLatency) -> dict[str, Any]:
         "turn_end_ms": None if turn.turn_end_s is None else round(turn.turn_end_s * 1000),
         "end_by": turn.end_by,
         "p_complete": None if turn.p_complete is None else round(turn.p_complete, 2),
+        "llm_first_clause_ms": None
+        if turn.llm_first_clause_s is None
+        else round(turn.llm_first_clause_s * 1000),
+        "tts_first_chars": turn.tts_first_chars,
     }
 
 
@@ -164,6 +180,8 @@ class _Turn:
     stt_s: float | None = None
     llm_ttft_s: float | None = None
     tts_first_audio_s: float | None = None
+    llm_first_clause_s: float | None = None
+    tts_first_chars: int | None = None
     bot_speaking: bool = False
     turn_end_s: float | None = None
     # Smart Turn's last verdict in the turn: (is_complete, probability).
@@ -181,6 +199,8 @@ class _Turn:
             turn_end_s=self.turn_end_s,
             end_by=self._end_by(),
             p_complete=None if self.prediction is None else self.prediction[1],
+            llm_first_clause_s=self.llm_first_clause_s,
+            tts_first_chars=self.tts_first_chars,
         )
 
     def _end_by(self) -> str | None:
@@ -303,3 +323,11 @@ def _take_metrics(turn: _Turn, frame: MetricsFrame, source: Any) -> None:
             turn.llm_ttft_s = _first_positive(turn.llm_ttft_s, data.value)
         elif isinstance(source, TTSService) and isinstance(data, TTFBMetricsData):
             turn.tts_first_audio_s = _first_positive(turn.tts_first_audio_s, data.value)
+        elif isinstance(source, TTSService) and isinstance(data, TextAggregationMetricsData):
+            turn.llm_first_clause_s = _first_positive(turn.llm_first_clause_s, data.value)
+        elif (
+            isinstance(source, TTSService)
+            and isinstance(data, TTSUsageMetricsData)
+            and turn.tts_first_chars is None
+        ):
+            turn.tts_first_chars = data.value
