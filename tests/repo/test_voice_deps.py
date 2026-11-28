@@ -147,7 +147,7 @@ def test_bench_group_stays_in_the_bench_target(repo_root: Path) -> None:
         assert not found & ancestry(stages, target), f"bench group reaches {target}"
 
 
-@pytest.mark.parametrize("what", [r"\bespeak-ng\b", r"LD_LIBRARY_PATH"])
+@pytest.mark.parametrize("what", [r"\bespeak-ng\b", r"LD_LIBRARY_PATH", r"ORT_DISABLE_TELEMETRY=1"])
 @pytest.mark.parametrize("target", ["dev", "runtime", "bench"])
 def test_voice_runtime_pieces_reach_every_server_image(
     repo_root: Path, what: str, target: str
