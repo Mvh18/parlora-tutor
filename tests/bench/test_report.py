@@ -72,3 +72,11 @@ def test_memory_section_shows_kokoro_when_measured() -> None:
 
     assert "Kokoro adds" not in report.render(results)
     assert "Kokoro adds 600 MiB" in report.render([*others, (name, with_tts)])
+
+
+def test_call_section_shows_the_smoke_call() -> None:
+    text = report.render(report.load(FIXTURES))
+
+    assert "## Smoke call" in text
+    assert "12 / 12" in text
+    assert "0.910 s / 1.180 s" in text

@@ -2,9 +2,11 @@
 
 Each voice dependency (`stt`, `tts`, `llm`, `vad`) has a loader that loads it and
 runs one warm-up inference, so the first turn of the first call does not pay for
-a cold start (ADR 0009: 5-15 s). Loaders run one after another in the background
-while the server already answers liveness; readiness reports each one as
-`loading`, `ok` or `failed`, or `disabled` when voice is off (no GPU, CI).
+a cold start (ADR 0009: 5-15 s); the language model's warm-up also leaves the
+conversation prompt of the warm-up language in Ollama's prompt cache. Loaders
+run one after another in the background while the server already answers
+liveness; readiness reports each one as `loading`, `ok` or `failed`, or
+`disabled` when voice is off (no GPU, CI).
 Failures are logged with the dependency's name and the adapter's message, which
 names models and endpoints, never a conversation.
 """
@@ -23,6 +25,7 @@ from parlora_core.languages import LanguageCode
 from parlora_core.ports import LanguageModel, SpeechToText, TextToSpeech
 from parlora_server.config import Settings
 from parlora_server.voice.pipeline import VoiceModels, silero_vad, smart_turn
+from parlora_server.voice.prompts import load_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +136,7 @@ def default_loaders(settings: Settings) -> dict[str, Loader]:
 
         model = load_ollama(settings.llm)
         try:
-            await model.warm_up()
+            await model.warm_up(prompt=load_prompt(WARM_UP_LANGUAGE))
         except BaseException:
             await model.aclose()
             raise

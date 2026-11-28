@@ -3,7 +3,8 @@
 The same script runs on the host (`just bench-stt`) and in the bench image
 (`just bench-stt-container`), so the two variants cannot drift apart (ADR 0002's
 open question). Settings follow ADR 0002: `large-v3-turbo`, `int8` on CUDA, beam
-size 5, audio fed as in-memory float32 PCM (the committed synthetic fixtures).
+size 5 (`--beam-size` to compare others; the variant then ends in `-beam<N>`),
+audio fed as in-memory float32 PCM (the committed synthetic fixtures).
 
 Measured: model load, the first (warm-up) transcription, N warm transcriptions per
 fixture (p50/p95 latency, real-time factor), word error rate against the
@@ -11,7 +12,7 @@ reference text after normalisation, and the GPU's used VRAM after loading and at
 peak, minus the baseline before loading. If CUDA cannot be used, the error is
 recorded in the result instead of crashing, and the exit code is 1.
 
-Usage: python -m scripts.bench.stt [--runs N] [--variant native|container]
+Usage: python -m scripts.bench.stt [--runs N] [--variant native|container] [--beam-size N]
 """
 
 import argparse
@@ -38,7 +39,13 @@ from scripts.bench.gpu import VramSampler
 from scripts.bench.host import collect_machine
 
 MODEL = "large-v3-turbo"
-SETTINGS = {"model": MODEL, "device": "cuda", "compute_type": "int8", "beam_size": 5}
+DEFAULT_BEAM_SIZE = 5
+SETTINGS = {
+    "model": MODEL,
+    "device": "cuda",
+    "compute_type": "int8",
+    "beam_size": DEFAULT_BEAM_SIZE,
+}
 DEFAULT_RUNS = 10
 VARIANT_ENV = "PARLORA_BENCH_VARIANT"
 NVIDIA_WHEELS = ("nvidia-cublas-cu12", "nvidia-cudnn-cu12", "nvidia-cuda-nvrtc-cu12")
@@ -71,14 +78,14 @@ def load_fixtures(directory: Path = FIXTURES) -> list[Fixture]:
     return fixtures
 
 
-def whisper_transcriber() -> Transcriber:
+def whisper_transcriber(beam_size: int = DEFAULT_BEAM_SIZE) -> Transcriber:
     add_cuda_dll_directories()
     from faster_whisper import WhisperModel
 
     model = WhisperModel(MODEL, device=SETTINGS["device"], compute_type=SETTINGS["compute_type"])
 
     def transcribe(audio: Any) -> str:
-        segments, _ = model.transcribe(audio, beam_size=SETTINGS["beam_size"], language="en")
+        segments, _ = model.transcribe(audio, beam_size=beam_size, language="en")
         return "".join(segment.text for segment in segments).strip()
 
     return transcribe
@@ -163,25 +170,36 @@ def versions() -> dict[str, str | None]:
 
 def main(
     argv: Sequence[str] | None = None,
-    load: Callable[[], Transcriber] = whisper_transcriber,
+    load: Callable[[int], Transcriber] = whisper_transcriber,
     sampler: Any = None,
 ) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--runs", type=int, default=DEFAULT_RUNS)
     parser.add_argument("--variant", choices=["native", "container"], default=detect_variant())
     parser.add_argument("--fixtures", type=Path, default=FIXTURES)
+    parser.add_argument("--beam-size", type=int, default=DEFAULT_BEAM_SIZE)
     parser.add_argument("--output-dir", type=Path, default=RESULTS_DIR)
     args = parser.parse_args(argv)
     if args.runs < 1:
         parser.error("--runs must be at least 1")
+    if not 1 <= args.beam_size <= 10:
+        parser.error("--beam-size must be between 1 and 10")
+    variant = args.variant
+    if args.beam_size != DEFAULT_BEAM_SIZE:
+        variant += f"-beam{args.beam_size}"
 
     fixtures = load_fixtures(args.fixtures)
     sampler = sampler or VramSampler()
     software = {"python": platform.python_version(), **versions(), "vram_sampler": sampler.source}
-    settings = {**SETTINGS, "warm_runs_per_fixture": args.runs, "input": "float32 PCM"}
-    print(f"stt: {args.variant}, {len(fixtures)} fixtures x {args.runs} warm runs", flush=True)
+    settings = {
+        **SETTINGS,
+        "beam_size": args.beam_size,
+        "warm_runs_per_fixture": args.runs,
+        "input": "float32 PCM",
+    }
+    print(f"stt: {variant}, {len(fixtures)} fixtures x {args.runs} warm runs", flush=True)
     try:
-        measurements = measure(load, fixtures, args.runs, sampler)
+        measurements = measure(lambda: load(args.beam_size), fixtures, args.runs, sampler)
         p95 = measurements["latency_s"]["summary"]["p95"]
         checks = [evaluate_budget(BUDGETS["stt_warm_p95"], p95).to_dict()]
         code = 0
@@ -191,7 +209,7 @@ def main(
         code = 1
     result = build_result(
         component="stt",
-        variant=args.variant,
+        variant=variant,
         machine=collect_machine(cuda_runtime=software.get("nvidia-cublas-cu12")),
         software=software,
         settings=settings,

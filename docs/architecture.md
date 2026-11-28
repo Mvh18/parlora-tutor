@@ -105,8 +105,9 @@ Languages are data, not code paths ([ADR 0007](adr/0007-language-as-a-first-clas
 
 The health endpoints follow the same path. `/api/v1/health/live` answers
 while the process runs. `/api/v1/health/ready` runs every readiness check and
-returns `checks`, an open map keyed by dependency: today only `database`;
-Phase 1 adds the models. Clients must accept new keys.
+returns `checks`, an open map keyed by dependency: `database` and the voice
+models `stt`, `tts`, `llm` and `vad` (`loading`, `ok`, `failed`, or `disabled`
+when voice is off). Clients must accept new keys.
 
 ## Persistence
 
@@ -173,11 +174,33 @@ requestData}`, with the call's level, topic and languages under
   webhooks) arrive with the integration; while they are unset, integration
   endpoints stay disabled.
 
-## Planned voice pipeline
+## Voice pipeline
 
-From Phase 1, the server also runs a Pipecat pipeline per call: browser audio
-over WebRTC → Silero VAD and turn detection → faster-whisper on the GPU → the
-conversation model in Ollama → Kokoro speech synthesis on the CPU → back to
-the browser. A second model call produces written corrections in parallel, so
-they never delay the spoken reply. GPL code stays outside the process
-([ADR 0004](adr/0004-kokoro-g2p-and-gpl-boundary.md)).
+The server runs one Pipecat pipeline per call over the SmallWebRTC transport
+([ADR 0010](adr/0010-phase-1-voice-pipeline.md)):
+
+```text
+transport in → STT service → user aggregator (Silero VAD, Smart Turn v3)
+  → LLM service → TTS service (clause aggregation) → transport out → assistant aggregator
+```
+
+- **Models.** faster-whisper on the GPU, the conversation model in the host's
+  Ollama (kept resident), Kokoro on onnxruntime's CUDA provider (CPU as a
+  fallback). Each sits behind a streaming port of `parlora_core.ports`; thin
+  services in `parlora_server.voice.services` connect them to Pipecat. They load
+  and warm up at start-up, before readiness reports them `ok`.
+- **Turns.** Silero VAD marks speech; Smart Turn v3 decides when the learner
+  has finished, and after `PARLORA_VAD__TURN_FALLBACK_SECS` of silence the turn
+  ends anyway. Learner speech during a reply interrupts it.
+- **Replies.** The LLM's text reaches Kokoro clause by clause
+  (`parlora_core.speech`), so the first audio does not wait for the whole reply.
+- **Metrics.** Each turn logs its voice-to-voice latency and the share of each
+  model, and how the turn ended; the call summary gives p50 and p95. The text of
+  the conversation is logged only at DEBUG. The client receives each turn's
+  latency as an RTVI `turn-latency` server message.
+- **Limits.** `PARLORA_VOICE__MAX_CALLS` calls at a time (default 1), a maximum
+  duration and an idle timeout.
+
+Later phases add a second model call that produces written corrections in
+parallel, so they never delay the spoken reply. GPL code stays outside the
+process ([ADR 0004](adr/0004-kokoro-g2p-and-gpl-boundary.md)).

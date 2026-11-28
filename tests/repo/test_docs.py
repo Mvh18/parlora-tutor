@@ -152,7 +152,7 @@ def test_notice_names_the_gpl_component(repo_root: Path) -> None:
 
 def test_notice_names_the_proprietary_cuda_libraries(repo_root: Path) -> None:
     text = " ".join(read(repo_root, "NOTICE").split())
-    for name in ["nvidia-cublas-cu12", "nvidia-cudnn-cu12", "nvidia-cuda-nvrtc-cu12"]:
+    for name in ["nvidia-cublas-cu12", "nvidia-cudnn-cu13", "nvidia-cuda-nvrtc-cu12"]:
         assert name in text, f"NOTICE does not list {name}"
     assert "not redistributed" in text
 

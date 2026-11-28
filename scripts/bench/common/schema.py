@@ -22,7 +22,7 @@ from typing import Any
 from scripts.bench.common.machine import machine_problems
 
 SCHEMA_VERSION = 1
-COMPONENTS = ("llm", "stt", "tts", "memory")
+COMPONENTS = ("llm", "stt", "tts", "memory", "call")
 STATUSES = ("pass", "warn", "fail")
 REQUIRED_BLOCKS = ("machine", "software", "settings", "measurements", "checks")
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"

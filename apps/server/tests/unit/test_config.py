@@ -160,7 +160,7 @@ def test_voice_and_turn_detection_defaults(clean_env: None) -> None:
     assert settings.voice.enabled is True
     assert settings.tts.voice == "af_heart"
     assert settings.vad.stop_secs == 0.2, "short VAD silence: Smart Turn decides the turn"
-    assert settings.vad.turn_fallback_secs == 3.0
+    assert settings.vad.turn_fallback_secs == 2.0, "time to think before an unsure turn ends"
 
 
 def test_voice_can_be_disabled(monkeypatch: pytest.MonkeyPatch, clean_env: None) -> None:

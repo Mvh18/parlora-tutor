@@ -20,9 +20,10 @@ dependencies = [
 # Pipecat logs through loguru; the server sets its level (parlora_server.logs).
 "loguru>=0.7.3",
     "faster-whisper>=1.2.1",
-    # CUDA 12 user-space libraries for ctranslate2 (ADR 0002); no macOS wheels.
+    # cuBLAS for CUDA 12, which ctranslate2 links (ADR 0002); no macOS wheels.
+    # cuDNN comes only from onnxruntime-gpu's CUDA 13 wheel: the CUDA 12 and 13
+    # cuDNN wheels write the same files, and ctranslate2 runs on the CUDA 13 one.
     "nvidia-cublas-cu12>=12.9 ; sys_platform == 'linux' or sys_platform == 'win32'",
-    "nvidia-cudnn-cu12>=9.27 ; sys_platform == 'linux' or sys_platform == 'win32'",
     # Kokoro on the GPU: the GPU build also has the CPU provider and brings its
     # CUDA 13 libraries as wheels. macOS has no GPU build. The root pyproject
     # overrides the CPU `onnxruntime` other packages ask for: both builds install

@@ -83,7 +83,7 @@ def no_audio(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_result_records_the_variant_and_the_budget(tmp_path: Path) -> None:
     code = stt.main(
         ["--runs", "2", "--variant", "container", "--output-dir", str(tmp_path)],
-        load=lambda: hypotheses,
+        load=lambda beam_size: hypotheses,
         sampler=FakeSampler(),
     )
 
@@ -98,7 +98,7 @@ def test_result_records_the_variant_and_the_budget(tmp_path: Path) -> None:
 
 @pytest.mark.usefixtures("no_audio")
 def test_cuda_failure_is_recorded_instead_of_crashing(tmp_path: Path) -> None:
-    def broken() -> Any:
+    def broken(beam_size: int) -> Any:
         raise RuntimeError("Library cublas64_12.dll is not found or cannot be loaded")
 
     code = stt.main(
@@ -111,6 +111,31 @@ def test_cuda_failure_is_recorded_instead_of_crashing(tmp_path: Path) -> None:
     validate_result(result)
     assert "cublas64_12.dll" in result["measurements"]["error"]
     assert result["checks"][0]["status"] == "fail"
+
+
+@pytest.mark.usefixtures("no_audio")
+def test_a_smaller_beam_is_recorded_and_named_in_the_variant(tmp_path: Path) -> None:
+    used: list[int] = []
+
+    def load(beam_size: int) -> Any:
+        used.append(beam_size)
+        return hypotheses
+
+    args = ["--runs", "1", "--variant", "native", "--beam-size", "1"]
+    code = stt.main([*args, "--output-dir", str(tmp_path)], load=load, sampler=FakeSampler())
+
+    assert code == 0
+    assert used == [1]
+    (path,) = tmp_path.glob("*-stt-native-beam1.json")
+    result = json.loads(path.read_text(encoding="utf-8"))
+    assert result["variant"] == "native-beam1"
+    assert result["settings"]["beam_size"] == 1
+
+
+@pytest.mark.parametrize("beam", ["0", "11"])
+def test_beam_size_must_be_between_1_and_10(tmp_path: Path, beam: str) -> None:
+    with pytest.raises(SystemExit):
+        stt.main(["--beam-size", beam, "--output-dir", str(tmp_path)])
 
 
 def test_variant_from_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:

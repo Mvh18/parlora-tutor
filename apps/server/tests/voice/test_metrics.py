@@ -20,7 +20,13 @@ from pipecat.frames.frames import (
     VADUserStartedSpeakingFrame,
     VADUserStoppedSpeakingFrame,
 )
-from pipecat.metrics.metrics import ProcessingMetricsData, TTFBMetricsData
+from pipecat.metrics.metrics import (
+    ProcessingMetricsData,
+    TextAggregationMetricsData,
+    TTFBMetricsData,
+    TTSUsageMetricsData,
+    TurnMetricsData,
+)
 from pipecat.observers.base_observer import FramePushed
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
@@ -100,6 +106,10 @@ def one_turn(
     push(observer, MetricsFrame(data=[stt]), SOURCES.stt)
     push(observer, MetricsFrame(data=[TTFBMetricsData(processor="llm", value=0.3)]), SOURCES.llm)
     push(observer, LLMTextFrame(TUTOR_TEXT), SOURCES.llm)
+    clause = TextAggregationMetricsData(processor="tts", value=0.08)
+    push(observer, MetricsFrame(data=[clause]), SOURCES.tts)
+    usage = TTSUsageMetricsData(processor="tts", value=len("Nice!"))
+    push(observer, MetricsFrame(data=[usage]), SOURCES.tts)
     push(observer, MetricsFrame(data=[TTFBMetricsData(processor="tts", value=0.25)]), SOURCES.tts)
     clock.now = stopped_at + latency
     push(observer, BotStartedSpeakingFrame(), direction=FrameDirection.UPSTREAM)
@@ -130,6 +140,11 @@ def test_one_completed_turn_gives_one_info_record_with_the_latencies_and_no_text
         "llm_ttft_ms": 300,
         "tts_first_audio_ms": 250,
         "interrupted": False,
+        "turn_end_ms": 0,
+        "end_by": None,
+        "p_complete": None,
+        "llm_first_clause_ms": 80,
+        "tts_first_chars": 5,
     }
     assert "voice_to_voice_ms=900" in record.getMessage()
     logged = " ".join(r.getMessage() for r in caplog.records)
@@ -307,3 +322,156 @@ def test_percentile_lies_between_the_extremes_and_grows_with_q(
     assert percentile(values, 0) == min(values)
     assert percentile(values, 100) == max(values)
     assert percentile(values, q / 2) <= value + 1e-9
+
+
+def predicted(complete: bool, probability: float) -> MetricsFrame:
+    return MetricsFrame(
+        data=[
+            TurnMetricsData(
+                processor="smart-turn",
+                is_complete=complete,
+                probability=probability,
+                e2e_processing_time_ms=40.0,
+            )
+        ]
+    )
+
+
+def turn_ended_after(
+    observer: TurnMetricsObserver, clock: Clock, *predictions: MetricsFrame, wait: float
+) -> None:
+    """The learner stops at `clock.now`; Smart Turn predicts; the turn ends `wait` later."""
+    stopped_at = clock.now
+    push(observer, VADUserStartedSpeakingFrame(start_secs=0.2, timestamp=stopped_at - 1))
+    push(observer, VADUserStoppedSpeakingFrame(stop_secs=0.2, timestamp=stopped_at + 0.2))
+    for prediction in predictions:
+        push(observer, prediction)
+    clock.now = stopped_at + wait
+    push(observer, UserStoppedSpeakingFrame())
+    clock.now += 0.5
+    push(observer, BotStartedSpeakingFrame())
+    push(observer, BotStoppedSpeakingFrame())
+
+
+def test_a_turn_smart_turn_ends_logs_the_model_its_probability_and_the_wait(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO, logger=LOGGER)
+    clock = Clock()
+    observer = TurnMetricsObserver(clock=clock)
+
+    turn_ended_after(observer, clock, predicted(True, 0.834), wait=0.3)
+
+    (record,) = turn_records(caplog)
+    latency = record.turn_latency  # type: ignore[attr-defined]
+    assert (latency["end_by"], latency["p_complete"], latency["turn_end_ms"]) == (
+        "model",
+        0.83,
+        300,
+    )
+    assert "end_by=model p_complete=0.83" in record.getMessage()
+
+
+def test_a_turn_the_silence_timeout_ends_logs_the_fallback_and_the_last_probability(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO, logger=LOGGER)
+    clock = Clock()
+    observer = TurnMetricsObserver(clock=clock)
+
+    # A pause judged incomplete, then the learner stays silent until the fallback.
+    turn_ended_after(observer, clock, predicted(True, 0.9), predicted(False, 0.31), wait=1.5)
+
+    (record,) = turn_records(caplog)
+    latency = record.turn_latency  # type: ignore[attr-defined]
+    assert (latency["end_by"], latency["p_complete"], latency["turn_end_ms"]) == (
+        "fallback",
+        0.31,
+        1500,
+    )
+
+
+def test_turn_detection_fields_stay_out_of_the_client_message() -> None:
+    clock = Clock()
+    sent: list[dict[str, Any]] = []
+
+    async def on_latency(turn: TurnLatency) -> None:
+        sent.append(turn.client_message())
+
+    observer = TurnMetricsObserver(on_latency=on_latency, clock=clock)
+
+    turn_ended_after(observer, clock, predicted(True, 0.9), wait=0.3)
+
+    assert sent
+    assert not {
+        "end_by",
+        "p_complete",
+        "turn_end_ms",
+        "llm_first_clause_ms",
+        "tts_first_chars",
+    } & set(sent[0])
+
+
+def test_only_the_first_clause_of_the_reply_is_measured() -> None:
+    clock = Clock()
+    observer = TurnMetricsObserver(clock=clock)
+
+    push(observer, VADUserStoppedSpeakingFrame(stop_secs=0.2, timestamp=clock.now))
+    push(observer, UserStoppedSpeakingFrame())
+    for clause_s, chars in ((0.12, 40), (0.05, 18)):
+        push(
+            observer,
+            MetricsFrame(
+                data=[
+                    TextAggregationMetricsData(processor="tts", value=clause_s),
+                    TTSUsageMetricsData(processor="tts", value=chars),
+                ]
+            ),
+            SOURCES.tts,
+        )
+    push(observer, BotStartedSpeakingFrame())
+    push(observer, BotStoppedSpeakingFrame())
+
+    (turn,) = observer.turns
+    assert (turn.llm_first_clause_s, turn.tts_first_chars) == (0.12, 40)
+
+
+def test_the_summary_separates_turns_smart_turn_ended_from_fallback_turns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO, logger=LOGGER)
+    clock = Clock()
+    observer = TurnMetricsObserver(clock=clock)
+    # Released by Smart Turn after 0.4-0.6 s: voice to voice is that wait + 0.5 s.
+    for wait in [0.4, 0.5, 0.6]:
+        turn_ended_after(observer, clock, predicted(True, 0.9), wait=wait)
+        clock.now += 1
+    # Released by the silence timeout: the learner paused, Smart Turn said unfinished.
+    for wait in [2.2, 2.4]:
+        turn_ended_after(observer, clock, predicted(False, 0.1), wait=wait)
+        clock.now += 1
+
+    summary = observer.log_summary()
+
+    assert summary.model_turns == 3
+    assert summary.model_p50_s == pytest.approx(1.0)
+    assert summary.model_p95_s == pytest.approx(1.09)
+    assert summary.fallback_turns == 2
+    assert summary.fallback_wait_p50_s == pytest.approx(2.3)
+    assert summary.p95_s is not None
+    assert summary.p95_s > 2.5, "all turns are still reported"
+    (record,) = [r for r in caplog.records if hasattr(r, "call_summary")]
+    message = record.getMessage()
+    assert "model_turns=3 model_p50_ms=1000 model_p95_ms=1090" in message
+    assert "fallback_turns=2 fallback_wait_p50_ms=2300" in message
+
+
+def test_a_summary_without_detection_data_has_no_model_percentiles() -> None:
+    clock = Clock()
+    observer = TurnMetricsObserver(clock=clock)
+    one_turn(observer, clock)
+
+    summary = observer.summary()
+
+    assert (summary.model_turns, summary.model_p50_s, summary.model_p95_s) == (0, None, None)
+    assert (summary.fallback_turns, summary.fallback_wait_p50_s) == (0, None)

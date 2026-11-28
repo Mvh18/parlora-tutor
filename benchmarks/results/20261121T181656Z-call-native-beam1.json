@@ -1,0 +1,303 @@
+{
+  "schema_version": 1,
+  "component": "call",
+  "variant": "native-beam1",
+  "created_at": "2026-11-21T18:16:56Z",
+  "machine": {
+    "os": "Windows",
+    "os_version": "10.0.26200",
+    "cpu": "AMD Ryzen 5 5600G with Radeon Graphics",
+    "ram_total_mb": 16252,
+    "gpu": "NVIDIA GeForce RTX 4060",
+    "vram_total_mb": 8188,
+    "driver": "616.56",
+    "cuda_runtime": null,
+    "docker_engine": null
+  },
+  "software": {
+    "python": "3.12.15",
+    "pipecat-ai": "1.15.0",
+    "aiortc": "1.15.0",
+    "faster-whisper": "1.2.1",
+    "onnxruntime-gpu": "1.31.1",
+    "ollama": "0.40.15"
+  },
+  "settings": {
+    "llm_model": "qwen3:4b-instruct-2507-q4_K_M",
+    "stt_model": "large-v3-turbo",
+    "stt_beam_size": 1,
+    "tts_provider": "cuda",
+    "tts_voice": "af_heart",
+    "vad_stop_secs": 0.2,
+    "turn_fallback_secs": 2.0,
+    "fixtures": 12,
+    "quiet_gap_s": 2.0,
+    "turn_timeout_s": 30.0,
+    "loudness_threshold": 200.0
+  },
+  "measurements": {
+    "client_turns": [
+      {
+        "fixture": "a1-greeting",
+        "utterance_s": 3.36,
+        "bot_audio_s": 2.98,
+        "first_bot_audio_s": 1.2349999999996726
+      },
+      {
+        "fixture": "a1-family",
+        "utterance_s": 4.54,
+        "bot_audio_s": 2.7,
+        "first_bot_audio_s": 1.3130000000001019
+      },
+      {
+        "fixture": "a2-market",
+        "utterance_s": 5.15,
+        "bot_audio_s": 3.26,
+        "first_bot_audio_s": 1.594000000000051
+      },
+      {
+        "fixture": "a2-directions",
+        "utterance_s": 3.62,
+        "bot_audio_s": 3.84,
+        "first_bot_audio_s": 1.1869999999998981
+      },
+      {
+        "fixture": "a2-tickets",
+        "utterance_s": 5.99,
+        "bot_audio_s": 3.34,
+        "first_bot_audio_s": 1.469000000000051
+      },
+      {
+        "fixture": "b1-work",
+        "utterance_s": 4.89,
+        "bot_audio_s": 2.88,
+        "first_bot_audio_s": 1.375
+      },
+      {
+        "fixture": "b1-travel",
+        "utterance_s": 5.68,
+        "bot_audio_s": 2.88,
+        "first_bot_audio_s": 1.3280000000004293
+      },
+      {
+        "fixture": "b1-films",
+        "utterance_s": 6.22,
+        "bot_audio_s": 2.56,
+        "first_bot_audio_s": 2.938000000000102
+      },
+      {
+        "fixture": "b2-meeting",
+        "utterance_s": 6.33,
+        "bot_audio_s": 2.82,
+        "first_bot_audio_s": 1.3280000000004293
+      },
+      {
+        "fixture": "b2-traffic",
+        "utterance_s": 7.23,
+        "bot_audio_s": 2.48,
+        "first_bot_audio_s": 1.5150000000003274
+      },
+      {
+        "fixture": "c1-research",
+        "utterance_s": 8.48,
+        "bot_audio_s": 2.56,
+        "first_bot_audio_s": 1.4380000000001019
+      },
+      {
+        "fixture": "c1-cafe",
+        "utterance_s": 7.77,
+        "bot_audio_s": 2.4,
+        "first_bot_audio_s": 1.2340000000003783
+      }
+    ],
+    "answered": 12,
+    "client_first_audio_s": {
+      "count": 12,
+      "min": 1.1869999999998981,
+      "p50": 1.3515000000002146,
+      "p95": 2.198800000000073,
+      "max": 2.938000000000102,
+      "mean": 1.4961666666667952
+    },
+    "server_turns": [
+      {
+        "voice_to_voice_ms": 964,
+        "stt_ms": 614,
+        "llm_ttft_ms": 108,
+        "tts_first_audio_ms": 265,
+        "interrupted": false,
+        "turn_end_ms": 483,
+        "end_by": "model",
+        "p_complete": 0.95
+      },
+      {
+        "voice_to_voice_ms": 1143,
+        "stt_ms": 606,
+        "llm_ttft_ms": 54,
+        "tts_first_audio_ms": 246,
+        "interrupted": false,
+        "turn_end_ms": 723,
+        "end_by": "model",
+        "p_complete": 0.99
+      },
+      {
+        "voice_to_voice_ms": 1302,
+        "stt_ms": 530,
+        "llm_ttft_ms": 55,
+        "tts_first_audio_ms": 455,
+        "interrupted": false,
+        "turn_end_ms": 702,
+        "end_by": "model",
+        "p_complete": 0.99
+      },
+      {
+        "voice_to_voice_ms": 964,
+        "stt_ms": 549,
+        "llm_ttft_ms": 72,
+        "tts_first_audio_ms": 310,
+        "interrupted": false,
+        "turn_end_ms": 498,
+        "end_by": "model",
+        "p_complete": 0.98
+      },
+      {
+        "voice_to_voice_ms": 1247,
+        "stt_ms": 575,
+        "llm_ttft_ms": 53,
+        "tts_first_audio_ms": 288,
+        "interrupted": false,
+        "turn_end_ms": 716,
+        "end_by": "model",
+        "p_complete": 0.99
+      },
+      {
+        "voice_to_voice_ms": 1138,
+        "stt_ms": 582,
+        "llm_ttft_ms": 67,
+        "tts_first_audio_ms": 261,
+        "interrupted": false,
+        "turn_end_ms": 702,
+        "end_by": "model",
+        "p_complete": 0.98
+      },
+      {
+        "voice_to_voice_ms": 1067,
+        "stt_ms": 552,
+        "llm_ttft_ms": 59,
+        "tts_first_audio_ms": 249,
+        "interrupted": false,
+        "turn_end_ms": 666,
+        "end_by": "model",
+        "p_complete": 0.99
+      },
+      {
+        "voice_to_voice_ms": null,
+        "stt_ms": 419,
+        "llm_ttft_ms": null,
+        "tts_first_audio_ms": null,
+        "interrupted": true,
+        "turn_end_ms": 623,
+        "end_by": "model",
+        "p_complete": 0.86
+      },
+      {
+        "voice_to_voice_ms": 2695,
+        "stt_ms": 533,
+        "llm_ttft_ms": 100,
+        "tts_first_audio_ms": 250,
+        "interrupted": false,
+        "turn_end_ms": 2198,
+        "end_by": "fallback",
+        "p_complete": 0.04
+      },
+      {
+        "voice_to_voice_ms": 1072,
+        "stt_ms": 635,
+        "llm_ttft_ms": 60,
+        "tts_first_audio_ms": 245,
+        "interrupted": false,
+        "turn_end_ms": 638,
+        "end_by": "model",
+        "p_complete": 0.96
+      },
+      {
+        "voice_to_voice_ms": 1314,
+        "stt_ms": 528,
+        "llm_ttft_ms": 63,
+        "tts_first_audio_ms": 427,
+        "interrupted": false,
+        "turn_end_ms": 737,
+        "end_by": "model",
+        "p_complete": 0.98
+      },
+      {
+        "voice_to_voice_ms": null,
+        "stt_ms": 516,
+        "llm_ttft_ms": 71,
+        "tts_first_audio_ms": null,
+        "interrupted": true,
+        "turn_end_ms": 449,
+        "end_by": "model",
+        "p_complete": 0.93
+      },
+      {
+        "voice_to_voice_ms": 1167,
+        "stt_ms": 467,
+        "llm_ttft_ms": 65,
+        "tts_first_audio_ms": 306,
+        "interrupted": false,
+        "turn_end_ms": 669,
+        "end_by": "model",
+        "p_complete": 0.99
+      },
+      {
+        "voice_to_voice_ms": 977,
+        "stt_ms": 624,
+        "llm_ttft_ms": 72,
+        "tts_first_audio_ms": 245,
+        "interrupted": false,
+        "turn_end_ms": 483,
+        "end_by": "model",
+        "p_complete": 0.99
+      }
+    ],
+    "summary": {
+      "turns": 14,
+      "measured": 12,
+      "interrupted": 2,
+      "p50_s": 1.1405019760131836,
+      "p95_s": 1.935051131248473,
+      "model_turns": 11,
+      "model_p50_s": 1.1382255554199219,
+      "model_p95_s": 1.3078315258026123,
+      "fallback_turns": 1,
+      "fallback_wait_p50_s": 2.1984939575195312
+    }
+  },
+  "checks": [
+    {
+      "name": "call_bot_audio_every_turn",
+      "status": "pass",
+      "value": 12,
+      "limit": 12,
+      "unit": "turns",
+      "detail": "every fixture played as a learner turn gets bot audio"
+    },
+    {
+      "name": "call_model_p50",
+      "status": "pass",
+      "value": 1.1382255554199219,
+      "limit": 1.2,
+      "unit": "s",
+      "detail": "Phase 1 latency target, p50 of model turns"
+    },
+    {
+      "name": "call_model_p95",
+      "status": "pass",
+      "value": 1.3078315258026123,
+      "limit": 1.5,
+      "unit": "s",
+      "detail": "Phase 1 latency target, p95 of model turns"
+    }
+  ]
+}

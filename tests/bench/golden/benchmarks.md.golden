@@ -23,6 +23,11 @@ Measured on the target machine with the scripts in `scripts/bench/`. Decisions t
   optimistic and not used for decisions.
 - **VRAM above baseline.** The GPU's used memory minus what was in use before
   the models were loaded (desktop and other processes).
+- **Smoke call.** Each synthetic fixture is played into a real call as one
+  learner turn (`just bench-call`). Voice to voice is the server's measure, from
+  the end of the learner's speech to the first bot audio sent; the target is
+  p50 ≤ 1.2 s and p95 ≤ 1.5 s over the turns Smart Turn released (model turns).
+  Client first audio is the same interval seen by the in-process client.
 - **Budgets** only warn; the VRAM limit (`PARLORA_BENCH_VRAM_LIMIT_MB`, default
   7680 MiB) fails the memory benchmark.
 
@@ -56,3 +61,9 @@ Baseline 958 MiB, speech-to-text adds 1,174 MiB, limit 7,680 MiB ([20261107T0103
 | `qwen3:8b` | 6,628 MiB | 7,586 MiB | ✅ |
 
 RAM: parlora-postgres-1 37 MiB, parlora-server-1 66 MiB; host Ollama 54 MiB.
+
+## Smoke call: the synthetic fixtures as learner turns of a real call
+
+| Variant | Turns answered | Model turns | Model p50 / p95 | All p50 / p95 | Fallback turns | Client first audio p50 / p95 | Bot audio every turn | Model p95 ≤ 1.5 s | Result |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| native | 12 / 12 | 12 | 0.910 s / 1.180 s | 0.910 s / 1.180 s | 0 | 1.060 s / 1.159 s | ✅ | ✅ | [20261121T120000Z-call-native](../benchmarks/results/20261121T120000Z-call-native.json) |

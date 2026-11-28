@@ -19,7 +19,12 @@ from parlora_core.languages import LanguageCode
 from parlora_core.learner import LearnerRef
 from parlora_core.session import SessionSettings
 from parlora_server.config import Settings
-from parlora_server.voice.call import ActivityObserver, WebRTCCallStarter, latency_messages
+from parlora_server.voice.call import (
+    ActivityObserver,
+    WebRTCCallStarter,
+    latency_messages,
+    pipeline_params,
+)
 from parlora_server.voice.metrics import TurnLatency
 from parlora_server.voice.registry import (
     CallHooks,
@@ -68,6 +73,14 @@ async def browser_offer() -> tuple[RTCPeerConnection, SdpDescription]:
     await peer.setLocalDescription(await peer.createOffer())
     local = peer.localDescription
     return peer, SdpDescription(local.sdp, local.type)
+
+
+def test_the_pipeline_reports_ttfb_and_usage_metrics_at_the_call_rates() -> None:
+    params = pipeline_params()
+
+    # Usage metrics carry each clause's length, which the turn observer logs.
+    assert (params.enable_metrics, params.enable_usage_metrics) == (True, True)
+    assert (params.audio_in_sample_rate, params.audio_out_sample_rate) == (16_000, 24_000)
 
 
 @pytest.mark.slow

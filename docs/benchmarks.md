@@ -23,6 +23,11 @@ Measured on the target machine with the scripts in `scripts/bench/`. Decisions t
   optimistic and not used for decisions.
 - **VRAM above baseline.** The GPU's used memory minus what was in use before
   the models were loaded (desktop and other processes).
+- **Smoke call.** Each synthetic fixture is played into a real call as one
+  learner turn (`just bench-call`). Voice to voice is the server's measure, from
+  the end of the learner's speech to the first bot audio sent; the target is
+  p50 ≤ 1.2 s and p95 ≤ 1.5 s over the turns Smart Turn released (model turns).
+  Client first audio is the same interval seen by the in-process client.
 - **Budgets** only warn; the VRAM limit (`PARLORA_BENCH_VRAM_LIMIT_MB`, default
   7680 MiB) fails the memory benchmark.
 
@@ -39,7 +44,8 @@ Measured on the target machine with the scripts in `scripts/bench/`. Decisions t
 | Variant | Load | Warm p50 / p95 | RTF p50 | WER (synthetic speech) | VRAM peak above baseline | p95 ≤ 1.0 s | Result |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | container | 10.8 s | 0.428 s / 0.547 s | 0.069 | 0.005 | 1,303 MiB | ✅ | [20261106T180314Z-stt-container](../benchmarks/results/20261106T180314Z-stt-container.json) |
-| native | 5.1 s | 0.409 s / 0.486 s | 0.069 | 0.005 | 1,329 MiB | ✅ | [20261106T175745Z-stt-native](../benchmarks/results/20261106T175745Z-stt-native.json) |
+| native | 7.4 s | 0.451 s / 0.529 s | 0.076 | 0.005 | 1,310 MiB | ✅ | [20261121T180626Z-stt-native](../benchmarks/results/20261121T180626Z-stt-native.json) |
+| native-beam1 | 5.6 s | 0.366 s / 0.414 s | 0.062 | 0.005 | 1,309 MiB | ✅ | [20261121T180719Z-stt-native-beam1](../benchmarks/results/20261121T180719Z-stt-native-beam1.json) |
 
 ## Text-to-speech (Kokoro ONNX on the CPU or CUDA)
 
@@ -61,3 +67,10 @@ Baseline 1,016 MiB, speech-to-text adds 1,227 MiB, Kokoro adds 533 MiB, limit 7,
 | `qwen3:8b` | 7,070 MiB | 8,086 MiB | ✅ |
 
 RAM: stack not running; host Ollama 36 MiB.
+
+## Smoke call: the synthetic fixtures as learner turns of a real call
+
+| Variant | Turns answered | Model turns | Model p50 / p95 | All p50 / p95 | Fallback turns | Client first audio p50 / p95 | Bot audio every turn | Model p95 ≤ 1.5 s | Result |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| native | 12 / 12 | 11 | 1.213 s / 1.384 s | 1.238 s / 2.006 s | 1 | 1.485 s / 2.278 s | ✅ | ✅ | [20261121T171003Z-call-native](../benchmarks/results/20261121T171003Z-call-native.json) |
+| native-beam1 | 12 / 12 | 11 | 1.133 s / 1.381 s | 1.148 s / 1.942 s | 1 | 1.398 s / 2.222 s | ✅ | ✅ | [20261121T181951Z-call-native-beam1](../benchmarks/results/20261121T181951Z-call-native-beam1.json) |

@@ -18,7 +18,7 @@ from scripts.bench.common.results import RESULTS_DIR
 
 REPORT = Path(__file__).resolve().parents[2] / "docs" / "benchmarks.md"
 ICONS = {"pass": "✅", "warn": "⚠️", "fail": "❌"}
-COMPONENTS = ("llm", "stt", "tts", "memory")
+COMPONENTS = ("llm", "stt", "tts", "memory", "call")
 
 DEFINITIONS = """\
 - **Cold / warm.** Each benchmark reports one cold run on its own and summarises
@@ -36,6 +36,11 @@ DEFINITIONS = """\
   optimistic and not used for decisions.
 - **VRAM above baseline.** The GPU's used memory minus what was in use before
   the models were loaded (desktop and other processes).
+- **Smoke call.** Each synthetic fixture is played into a real call as one
+  learner turn (`just bench-call`). Voice to voice is the server's measure, from
+  the end of the learner's speech to the first bot audio sent; the target is
+  p50 ≤ 1.2 s and p95 ≤ 1.5 s over the turns Smart Turn released (model turns).
+  Client first audio is the same interval seen by the in-process client.
 - **Budgets** only warn; the VRAM limit (`PARLORA_BENCH_VRAM_LIMIT_MB`, default
   7680 MiB) fails the memory benchmark."""
 
@@ -177,11 +182,36 @@ def _memory(entries: Sequence[tuple[str, Mapping[str, Any]]]) -> list[str]:
     return lines
 
 
+def _call(entries: Sequence[tuple[str, Mapping[str, Any]]]) -> list[str]:
+    rows = []
+    for name, r in entries:
+        m = r["measurements"]
+        summary, client = m["summary"], m["client_first_audio_s"] or {}
+        rows.append(
+            [
+                r["variant"],
+                f"{m['answered']} / {len(m['client_turns'])}",
+                str(summary["model_turns"]),
+                f"{_s(summary['model_p50_s'])} / {_s(summary['model_p95_s'])}",
+                f"{_s(summary['p50_s'])} / {_s(summary['p95_s'])}",
+                str(summary["fallback_turns"]),
+                f"{_s(client.get('p50'))} / {_s(client.get('p95'))}",
+                _status(r, "call_bot_audio_every_turn"),
+                _status(r, "call_model_p95"),
+                _link(name),
+            ]
+        )
+    header = ["Variant", "Turns answered", "Model turns", "Model p50 / p95", "All p50 / p95"]
+    header += ["Fallback turns", "Client first audio p50 / p95"]
+    return _table([*header, "Bot audio every turn", "Model p95 ≤ 1.5 s", "Result"], rows)
+
+
 SECTIONS = {
     "llm": ("LLM (host Ollama)", _llm),
     "stt": ("Speech-to-text (faster-whisper large-v3-turbo, int8, CUDA)", _stt),
     "tts": ("Text-to-speech (Kokoro ONNX on the CPU or CUDA)", _tts),
     "memory": ("Memory: the speech models and each LLM on the GPU together", _memory),
+    "call": ("Smoke call: the synthetic fixtures as learner turns of a real call", _call),
 }
 
 

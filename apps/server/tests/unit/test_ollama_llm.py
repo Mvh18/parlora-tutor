@@ -281,6 +281,50 @@ def test_warm_up_loads_the_model_resident_with_the_context_window() -> None:
     assert generate == [{"model": MODEL, "keep_alive": -1, "options": {"num_ctx": 4096}}]
 
 
+def test_warm_up_with_a_prompt_caches_it_with_a_one_token_chat() -> None:
+    fake = FakeOllama(capabilities=("completion", "thinking"))
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        if request.url.path == "/api/generate":
+            return httpx2.Response(200, json={"model": MODEL, "done": True})
+        if request.url.path == "/api/chat":
+            fake.requests.append(("/api/chat", json.loads(request.content)))
+            return httpx2.Response(200, json={"model": MODEL, "done": True})
+        return fake(request)
+
+    model = adapter(handler, keep_alive=-1, num_ctx=4096)
+    asyncio.run(model.warm_up(prompt="You are a tutor."))
+
+    # Ollama keeps the prompt's evaluated prefix, so the first turn of the first
+    # call does not evaluate the system prompt again (~150 ms on the RTX 4060).
+    assert fake.chat_bodies() == [
+        {
+            "model": MODEL,
+            "messages": [
+                {"role": "system", "content": "You are a tutor."},
+                {"role": "user", "content": ollama.WARM_UP_MESSAGE},
+            ],
+            "stream": False,
+            "keep_alive": -1,
+            "think": False,
+            "options": {"num_ctx": 4096, "num_predict": 1},
+        }
+    ]
+
+
+def test_warm_up_without_a_prompt_sends_no_chat() -> None:
+    fake = FakeOllama()
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        if request.url.path == "/api/generate":
+            return httpx2.Response(200, json={"model": MODEL, "done": True})
+        return fake(request)
+
+    asyncio.run(adapter(handler).warm_up())
+
+    assert fake.chat_bodies() == []
+
+
 def test_warm_up_fails_when_the_model_is_not_pulled() -> None:
     def handler(request: httpx2.Request) -> httpx2.Response:
         return httpx2.Response(404, json={"error": f"model '{MODEL}' not found"})

@@ -38,7 +38,6 @@ allow-dependencies-licenses:
   # reports NOASSERTION), installed locally and never redistributed (NOTICE).
   - pkg:pypi/nvidia-cublas-cu12
   - pkg:pypi/nvidia-cuda-nvrtc-cu12
-  - pkg:pypi/nvidia-cudnn-cu12
   # CUDA 13 wheels for onnxruntime-gpu (Kokoro on the GPU).
   - pkg:pypi/nvidia-cublas
   - pkg:pypi/nvidia-cuda-nvrtc

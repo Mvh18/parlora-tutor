@@ -9,7 +9,10 @@ request passes `keep_alive` (by default -1: the model stays resident between
 turns) and `num_ctx`.
 
 `warm_up` loads the model at start-up, so the first turn of a call does not wait
-for it.
+for it. Given the call's system prompt, it also sends a one-token chat with it:
+Ollama keeps the evaluated prefix of its last request, so the first turn of the
+first call skips evaluating the system prompt (~150 ms for the 4B model on the
+target GPU; later calls share the prefix with the call before).
 
 Every failure (Ollama unreachable, an HTTP error, an error inside the stream, a
 malformed or cut stream) becomes a `LanguageModelError`. Error messages name the
@@ -29,6 +32,8 @@ from parlora_server.config import LlmSettings
 
 # A cold model can take several seconds to load before the first chunk arrives.
 TIMEOUT = httpx2.Timeout(120.0, connect=5.0)
+# The learner message of the warm-up chat: only the system prompt before it matters.
+WARM_UP_MESSAGE = "Hello."
 
 
 def _error_text(response_body: bytes) -> str:
@@ -78,11 +83,13 @@ class OllamaLanguageModel:
                 self._capabilities = frozenset(str(c) for c in found)
             return self._capabilities
 
-    async def warm_up(self) -> None:
-        """Check the model is pulled and load it with the call's context window.
+    async def warm_up(self, prompt: str | None = None) -> None:
+        """Check the model is pulled, load it and, given a system prompt, cache it.
 
         A generate request without a prompt only loads the model; `keep_alive` keeps
-        it resident and the same `num_ctx` spares a reload on the first reply.
+        it resident and the same `num_ctx` spares a reload on the first reply. With
+        `prompt`, a one-token chat starting with it leaves its evaluated prefix in
+        Ollama's cache for the first reply.
         """
         await self.capabilities()
         await self._send(
@@ -94,6 +101,21 @@ class OllamaLanguageModel:
                 "options": {"num_ctx": self.num_ctx},
             },
         )
+        if prompt is None:
+            return
+        body: dict[str, Any] = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": WARM_UP_MESSAGE},
+            ],
+            "stream": False,
+            "keep_alive": self.keep_alive,
+            "options": {"num_ctx": self.num_ctx, "num_predict": 1},
+        }
+        if "thinking" in await self.capabilities():
+            body["think"] = False
+        await self._send("POST", "/api/chat", body)
 
     async def stream_reply(self, messages: Sequence[Message]) -> AsyncIterator[str]:
         body: dict[str, Any] = {

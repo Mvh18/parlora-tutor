@@ -12,13 +12,24 @@ one INFO record with:
   processing time, LLM time to first token and text-to-speech time to first
   audio Pipecat's metrics report in the turn.
 - `interrupted`: the learner spoke before the reply ended (barge-in).
+- `turn_end_s`, `end_by`, `p_complete` (log only, not sent to the client): how
+  long after the learner fell silent the turn was released, whether Smart Turn
+  released it (`model`) or the silence timeout did (`fallback`), and Smart Turn's
+  last probability that the learner had finished. They tune turn detection (9.2).
+- `llm_first_clause_s`, `tts_first_chars` (log only): how long the reply took from
+  its first token to its first complete clause, and that clause's length in
+  characters (a count, never the text). `tts_first_audio_s` starts once the clause
+  reaches the TTS, so these tell a slow synthesis from a long first clause.
 
 A turn ends when the bot stops speaking or when the learner interrupts the reply;
 a reply interrupted before any audio has no voice-to-voice latency. If the output
 runs dry between two clauses long enough for Pipecat to report the bot stopped,
 the turn ends there: its latency is already measured, but a barge-in after that
 gap is not flagged. When the call
-ends, `summary()` gives the turn count and the p50 and p95 voice-to-voice latency.
+ends, `summary()` gives the turn count and the p50 and p95 voice-to-voice latency,
+over all turns and over the turns Smart Turn released (`model_*`, the Phase 1
+target), and the count and median wait of the turns the silence timeout released
+(`fallback_*`: pauses Smart Turn judged unfinished, where waiting is the point).
 
 What the learner said and the tutor answered is logged only at DEBUG. The record
 carries the numbers both in its message and as `extra` attributes.
@@ -41,7 +52,13 @@ from pipecat.frames.frames import (
     VADUserStartedSpeakingFrame,
     VADUserStoppedSpeakingFrame,
 )
-from pipecat.metrics.metrics import ProcessingMetricsData, TTFBMetricsData
+from pipecat.metrics.metrics import (
+    ProcessingMetricsData,
+    TextAggregationMetricsData,
+    TTFBMetricsData,
+    TTSUsageMetricsData,
+    TurnMetricsData,
+)
 from pipecat.observers.base_observer import BaseObserver, FramePushed
 from pipecat.processors.frame_processor import FrameDirection
 from pipecat.services.llm_service import LLMService
@@ -63,6 +80,11 @@ class TurnLatency:
     llm_ttft_s: float | None
     tts_first_audio_s: float | None
     interrupted: bool
+    turn_end_s: float | None = None
+    end_by: str | None = None
+    p_complete: float | None = None
+    llm_first_clause_s: float | None = None
+    tts_first_chars: int | None = None
 
     def client_message(self) -> dict[str, Any]:
         """The server message sent to the client once the bot starts speaking."""
@@ -76,6 +98,11 @@ class CallSummary:
     interrupted: int
     p50_s: float | None
     p95_s: float | None
+    model_turns: int = 0
+    model_p50_s: float | None = None
+    model_p95_s: float | None = None
+    fallback_turns: int = 0
+    fallback_wait_p50_s: float | None = None
 
 
 def percentile(values: Sequence[float], q: float) -> float:
@@ -89,13 +116,26 @@ def percentile(values: Sequence[float], q: float) -> float:
 
 
 def summarise(turns: Sequence[TurnLatency]) -> CallSummary:
+    def pct(values: Sequence[float], q: float) -> float | None:
+        return percentile(values, q) if values else None
+
     latencies = [t.voice_to_voice_s for t in turns if t.voice_to_voice_s is not None]
+    model = [
+        t.voice_to_voice_s for t in turns if t.end_by == "model" and t.voice_to_voice_s is not None
+    ]
+    fallback = [t for t in turns if t.end_by == "fallback"]
+    waits = [t.turn_end_s for t in fallback if t.turn_end_s is not None]
     return CallSummary(
         turns=len(turns),
         measured=len(latencies),
         interrupted=sum(t.interrupted for t in turns),
-        p50_s=percentile(latencies, 50) if latencies else None,
-        p95_s=percentile(latencies, 95) if latencies else None,
+        p50_s=pct(latencies, 50),
+        p95_s=pct(latencies, 95),
+        model_turns=len(model),
+        model_p50_s=pct(model, 50),
+        model_p95_s=pct(model, 95),
+        fallback_turns=len(fallback),
+        fallback_wait_p50_s=pct(waits, 50),
     )
 
 
@@ -109,6 +149,20 @@ def _milliseconds(turn: TurnLatency) -> dict[str, Any]:
         "llm_ttft_ms": ms(turn.llm_ttft_s),
         "tts_first_audio_ms": ms(turn.tts_first_audio_s),
         "interrupted": turn.interrupted,
+    }
+
+
+def _log_values(turn: TurnLatency) -> dict[str, Any]:
+    """The client's values plus how the turn was detected, for the log only."""
+    return {
+        **_milliseconds(turn),
+        "turn_end_ms": None if turn.turn_end_s is None else round(turn.turn_end_s * 1000),
+        "end_by": turn.end_by,
+        "p_complete": None if turn.p_complete is None else round(turn.p_complete, 2),
+        "llm_first_clause_ms": None
+        if turn.llm_first_clause_s is None
+        else round(turn.llm_first_clause_s * 1000),
+        "tts_first_chars": turn.tts_first_chars,
     }
 
 
@@ -126,7 +180,12 @@ class _Turn:
     stt_s: float | None = None
     llm_ttft_s: float | None = None
     tts_first_audio_s: float | None = None
+    llm_first_clause_s: float | None = None
+    tts_first_chars: int | None = None
     bot_speaking: bool = False
+    turn_end_s: float | None = None
+    # Smart Turn's last verdict in the turn: (is_complete, probability).
+    prediction: tuple[bool, float] | None = None
     said: list[str] = field(default_factory=list)
     answered: list[str] = field(default_factory=list)
 
@@ -137,7 +196,17 @@ class _Turn:
             self.llm_ttft_s,
             self.tts_first_audio_s,
             interrupted,
+            turn_end_s=self.turn_end_s,
+            end_by=self._end_by(),
+            p_complete=None if self.prediction is None else self.prediction[1],
+            llm_first_clause_s=self.llm_first_clause_s,
+            tts_first_chars=self.tts_first_chars,
         )
+
+    def _end_by(self) -> str | None:
+        if not self.released or self.prediction is None:
+            return None
+        return "model" if self.prediction[0] else "fallback"
 
 
 LatencySink = Callable[[TurnLatency], Coroutine[Any, Any, None]]
@@ -173,7 +242,9 @@ class TurnMetricsObserver(BaseObserver):
         elif turn is None:
             return
         elif isinstance(frame, UserStoppedSpeakingFrame):
-            turn.released = True
+            if not turn.released:
+                turn.released = True
+                turn.turn_end_s = max(0.0, self._clock() - turn.user_stopped_at)
         elif isinstance(frame, MetricsFrame):
             _take_metrics(turn, frame, data.source)
         elif isinstance(frame, BotStartedSpeakingFrame):
@@ -192,12 +263,21 @@ class TurnMetricsObserver(BaseObserver):
     def log_summary(self) -> CallSummary:
         """Log the call summary at INFO and return it."""
         summary = self.summary()
+
+        def ms(seconds: float | None) -> int | None:
+            return None if seconds is None else round(seconds * 1000)
+
         values = {
             "turns": summary.turns,
             "measured": summary.measured,
             "interrupted": summary.interrupted,
-            "p50_ms": None if summary.p50_s is None else round(summary.p50_s * 1000),
-            "p95_ms": None if summary.p95_s is None else round(summary.p95_s * 1000),
+            "p50_ms": ms(summary.p50_s),
+            "p95_ms": ms(summary.p95_s),
+            "model_turns": summary.model_turns,
+            "model_p50_ms": ms(summary.model_p50_s),
+            "model_p95_ms": ms(summary.model_p95_s),
+            "fallback_turns": summary.fallback_turns,
+            "fallback_wait_p50_ms": ms(summary.fallback_wait_p50_s),
         }
         logger.info("call summary %s", _fields(values), extra={"call_summary": asdict(summary)})
         return summary
@@ -220,7 +300,7 @@ class TurnMetricsObserver(BaseObserver):
         self._turn = None
         result = turn.result(interrupted=interrupted)
         self.turns.append(result)
-        values = _milliseconds(result)
+        values = _log_values(result)
         logger.info("turn %s", _fields(values), extra={"turn_latency": values})
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(
@@ -235,9 +315,19 @@ def _first_positive(current: float | None, value: float) -> float | None:
 
 def _take_metrics(turn: _Turn, frame: MetricsFrame, source: Any) -> None:
     for data in frame.data:
-        if isinstance(source, STTService) and isinstance(data, ProcessingMetricsData):
+        if isinstance(data, TurnMetricsData):
+            turn.prediction = (data.is_complete, data.probability)
+        elif isinstance(source, STTService) and isinstance(data, ProcessingMetricsData):
             turn.stt_s = _first_positive(turn.stt_s, data.value)
         elif isinstance(source, LLMService) and isinstance(data, TTFBMetricsData):
             turn.llm_ttft_s = _first_positive(turn.llm_ttft_s, data.value)
         elif isinstance(source, TTSService) and isinstance(data, TTFBMetricsData):
             turn.tts_first_audio_s = _first_positive(turn.tts_first_audio_s, data.value)
+        elif isinstance(source, TTSService) and isinstance(data, TextAggregationMetricsData):
+            turn.llm_first_clause_s = _first_positive(turn.llm_first_clause_s, data.value)
+        elif (
+            isinstance(source, TTSService)
+            and isinstance(data, TTSUsageMetricsData)
+            and turn.tts_first_chars is None
+        ):
+            turn.tts_first_chars = data.value

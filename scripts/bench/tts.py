@@ -51,7 +51,11 @@ ONNX_PROVIDER = {"cpu": "CPUExecutionProvider", "cuda": "CUDAExecutionProvider"}
 
 class Synthesiser(Protocol):
     oov_mode: str
-    providers: tuple[str, ...]
+
+    @property
+    def providers(self) -> tuple[str, ...]:
+        """The onnxruntime providers the model runs on now."""
+        ...
 
     def __call__(self, text: str) -> tuple[float, tuple[str, ...]]:
         """Synthesise `text`; return the audio duration in seconds and the OOV words."""
@@ -65,7 +69,11 @@ def kokoro_synthesiser(provider: str) -> Synthesiser:
 
     class Run:
         oov_mode = kokoro.oov_mode
-        providers = kokoro.providers
+
+        @property
+        def providers(self) -> tuple[str, ...]:
+            # Live: onnxruntime may fall back to the CPU during a run.
+            return kokoro.providers
 
         def __call__(self, text: str) -> tuple[float, tuple[str, ...]]:
             speech = kokoro.synthesize(text)

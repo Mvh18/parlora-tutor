@@ -62,6 +62,9 @@ BUDGETS = {
         Budget("tts_first_audio", 0.5, "s", "roadmap latency target, TTS share of a turn"),
         # Synthesis must keep up with playback; ADR 0004 measured RTF 0.57 on CPU.
         Budget("tts_rtf", 1.0, "x", "real time; ADR 0004 measured 0.57 on CPU"),
+        # The Phase 1 target, voice to voice over the turns Smart Turn releases.
+        Budget("call_model_p50", 1.2, "s", "Phase 1 latency target, p50 of model turns"),
+        Budget("call_model_p95", 1.5, "s", "Phase 1 latency target, p95 of model turns"),
     )
 }
 

@@ -51,8 +51,8 @@ flowchart LR
     end
     subgraph docker["Docker (entorno local)"]
         subgraph server["parlora-server (FastAPI)"]
-            api["/api/v1 — salud, catálogo"]
-            voice["Flujo de voz (Fase 1)"]
+            api["/api/v1 — salud, catálogo, llamadas"]
+            voice["Flujo de voz (Pipecat)"]
             core["parlora-core — dominio"]
         end
         db[("PostgreSQL")]
@@ -61,10 +61,11 @@ flowchart LR
     hub -- "REST /api/v1" --> api
     dev -- "REST /api/v1" --> api
     hub -. "audio WebRTC + RTVI" .-> voice
+    dev -- "audio WebRTC + RTVI" --> voice
     api --> core
-    voice -.-> core
+    voice --> core
     api --> db
-    voice -. "API nativa de chat" .-> llm
+    voice -- "API nativa de chat" --> llm
 ```
 
 Las líneas discontinuas están planificadas. El núcleo de dominio no depende
@@ -81,8 +82,10 @@ de ningún framework y el servidor es un adaptador fino a su alrededor; ver
 | Sistema    | Windows 11 (WSL2), Linux o macOS                              | Windows 11 con Docker Desktop (WSL2)               |
 | Software   | Docker, git, [uv](https://docs.astral.sh/uv/), Node.js 24 LTS | más el driver de NVIDIA con soporte de GPU en WSL2 |
 
-Todo lo que usa la GPU (Whisper y el modelo de lenguaje) está dimensionado para
-caber en 8 GB de VRAM ([ADR 0009](docs/adr/0009-phase-1-llm-and-vram-budget.md)).
+Todo lo que usa la GPU (Whisper, Kokoro y el modelo de lenguaje) está
+dimensionado para caber en 8 GB de VRAM
+([ADR 0009](docs/adr/0009-phase-1-llm-and-vram-budget.md),
+[ADR 0010](docs/adr/0010-phase-1-voice-pipeline.md)).
 La pila de voz hace que `just setup` descargue unos 3 GB de paquetes de Python
 (sobre todo las librerías CUDA de NVIDIA) y que la imagen del servidor ocupe
 unos 5 GB; los pesos de Whisper y Kokoro (unos 2 GB) se descargan en el primer
@@ -107,6 +110,26 @@ Arranca el cliente de desarrollo con `pnpm --dir apps/web dev` y abre
 <http://localhost:3000>. Detén el entorno con `uv run just down`. La
 configuración es opcional; copia [.env.example](.env.example) a `.env` para
 cambiarla.
+
+### Una llamada de voz
+
+1. Arranca Ollama en el host y descarga el modelo de conversación:
+   `ollama pull qwen3:4b-instruct-2507-q4_K_M`.
+2. Ejecuta `uv run just up` y espera a que
+   <http://127.0.0.1:8700/api/v1/health/ready> marque `stt`, `tts`, `llm` y
+   `vad` como `ok`. El primer arranque descarga los pesos de voz; cargar y
+   calentar los modelos lleva unos minutos.
+3. Ejecuta `pnpm --dir apps/web dev`, abre <http://localhost:3000>, elige un
+   nivel y un tema, pulsa **Start call** y permite el micrófono. El tutor
+   responde en inglés; la página muestra la latencia de cada turno.
+
+Si la llamada no llega a conectar (Docker Desktop en Windows pierde el UDP del
+contenedor hacia el host), pon en `.env` `PARLORA_VOICE__ICE_HOST` con la IPv4
+del host en la red local y arranca con `uv run just up gpu lan`, que publica
+los puertos UDP 40000–40019 solo en esa dirección
+([ADR 0003](docs/adr/0003-webrtc-transport-from-docker.md#amendment-2026-11-15)).
+El flujo, sus valores por defecto y la latencia medida están en
+[ADR 0010](docs/adr/0010-phase-1-voice-pipeline.md).
 
 ## Estructura del proyecto
 
@@ -149,14 +172,15 @@ en `benchmarks/results/` sin datos personales, y
 decisiones de la primera ronda están en
 [ADR 0009](docs/adr/0009-phase-1-llm-and-vram-budget.md).
 
-| Comando                           | Qué hace                                                           |
-| --------------------------------- | ------------------------------------------------------------------ |
-| `uv run just bench-setup`         | Instala el grupo opcional `bench` y comprueba GPU y Ollama         |
-| `uv run just bench-llm [modelos]` | LLM a través del Ollama del host                                   |
-| `uv run just bench-stt`           | Reconocimiento de voz nativo (`-container` en Docker)              |
-| `uv run just bench-tts`           | Síntesis con Kokoro, `--provider cpu\|cuda` (también `-container`) |
-| `uv run just bench-memory`        | Control estricto de VRAM con STT y cada LLM (tras `just up`)       |
-| `uv run just bench`               | Todo lo anterior y después `bench-report`                          |
+| Comando                           | Qué hace                                                             |
+| --------------------------------- | -------------------------------------------------------------------- |
+| `uv run just bench-setup`         | Instala el grupo opcional `bench` y comprueba GPU y Ollama           |
+| `uv run just bench-llm [modelos]` | LLM a través del Ollama del host                                     |
+| `uv run just bench-stt`           | Reconocimiento de voz nativo (`-container` en Docker)                |
+| `uv run just bench-tts`           | Síntesis con Kokoro, `--provider cpu\|cuda` (también `-container`)   |
+| `uv run just bench-memory`        | Control estricto de VRAM con STT y cada LLM (tras `just up`)         |
+| `uv run just bench-call`          | Fixtures sintéticos como turnos de una llamada real (entorno parado) |
+| `uv run just bench`               | Todo lo anterior y después `bench-report`                            |
 
 ## Pruebas
 
@@ -176,8 +200,8 @@ Las pruebas marcadas `gpu` se excluyen en CI.
 
 | Fase | Objetivo                                                     | Estado         |
 | ---- | ------------------------------------------------------------ | -------------- |
-| 0    | Esqueleto del proyecto y benchmarks de componentes           | 🔵 En curso    |
-| 1    | Bucle de voz mínimo: hablar y oír una respuesta              | ⚪ Planificada |
+| 0    | Esqueleto del proyecto y benchmarks de componentes           | ✅ Hecha       |
+| 1    | Bucle de voz mínimo: hablar y oír una respuesta              | 🔵 En curso    |
 | 2    | Comportamiento de tutor: conversación adaptada al nivel MCER | ⚪ Planificada |
 | 3    | Correcciones escritas en paralelo a la conversación          | ⚪ Planificada |
 | 4    | Vista de llamada en el cliente de desarrollo                 | ⚪ Planificada |

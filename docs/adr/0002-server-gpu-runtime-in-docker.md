@@ -150,3 +150,25 @@ Requirements for the Phase 1 image, from these findings:
 - **Running the server natively on Windows.** Not needed for GPU access. It
   would also break the Dev Container decision to keep the toolchain off the
   host.
+
+## Amendment (2026-11-24): one cuDNN for CUDA 13
+
+Phase 1 added onnxruntime-gpu for Kokoro. Its CUDA 13 build brings
+`nvidia-cudnn-cu13`, and the server also asked for `nvidia-cudnn-cu12` for
+CTranslate2. Both wheels write the same files under `nvidia/cudnn`, so the
+installer's order decided which build each library came from. The image ended
+up with a mix that could not load cuDNN's runtime-compiled engines
+(`CUDNN_STATUS_SUBLIBRARY_LOADING_FAILED`), and onnxruntime moved Kokoro to the
+CPU in the middle of the warm-up: about 1–2.7 s to the first audio instead of
+about 0.25 s, in a real call.
+
+- The server installs **one cuDNN: `nvidia-cudnn-cu13`**, from onnxruntime-gpu.
+  CTranslate2 (cuBLAS for CUDA 12, `nvidia-cublas-cu12`) runs on it; this is
+  the combination the native Windows benchmarks already used.
+- `LD_LIBRARY_PATH` also lists `nvidia/cu13/lib`, where cuDNN finds NVRTC 13
+  at run time.
+- A repository test fails if the lock holds more than one cuDNN wheel, and
+  Kokoro logs a warning when onnxruntime leaves CUDA during inference.
+- An existing environment that removes `nvidia-cudnn-cu12` also loses the
+  shared files; reinstall the CUDA 13 wheel afterwards
+  (`uv sync --reinstall-package nvidia-cudnn-cu13`).
