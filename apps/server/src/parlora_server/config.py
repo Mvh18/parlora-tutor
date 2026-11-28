@@ -172,7 +172,11 @@ class SttSettings(BaseModel):
     compute_type: Literal["int8", "int8_float16", "float16", "float32"] = Field(
         default="int8", description="CTranslate2 compute type of the speech-to-text model."
     )
-    beam_size: int = Field(default=5, ge=1, le=10, description="Beam size of the decoder.")
+    # Greedy decoding (ADR 0010 amendment, 2026-11-28): 70-130 ms less per turn with
+    # the same transcripts as beam 5 on the fixtures and in a real call.
+    beam_size: int = Field(
+        default=1, ge=1, le=10, description="Beam size of the decoder; 1 is greedy decoding."
+    )
 
 
 class LlmSettings(BaseModel):

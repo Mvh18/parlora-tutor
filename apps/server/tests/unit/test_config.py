@@ -128,7 +128,7 @@ def test_voice_models_default_to_the_measured_ones(clean_env: None) -> None:
         "int8",
         "cuda",
     )
-    assert settings.stt.beam_size == 5
+    assert settings.stt.beam_size == 1, "greedy decoding (ADR 0010 amendment)"
     assert settings.llm.model == "qwen3:4b-instruct-2507-q4_K_M"
     assert settings.llm.num_ctx == 4096
     assert settings.llm.keep_alive == -1, "the model stays resident between turns"
