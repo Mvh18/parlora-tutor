@@ -44,7 +44,7 @@ class WhisperSpeechToText:
         self,
         model: WhisperModel,
         *,
-        beam_size: int = 5,
+        beam_size: int = 1,
         clock: Callable[[], float] = time.perf_counter,
     ) -> None:
         self._model = model

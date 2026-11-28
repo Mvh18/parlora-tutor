@@ -1,6 +1,6 @@
 # ADR 0010 — Phase 1 voice pipeline, turn detection and measured latency
 
-- **Status:** Accepted
+- **Status:** Accepted, amended 2026-11-28 (see [Amendment](#amendment-2026-11-28-greedy-decoding-by-default))
 - **Date:** 2026-11-27
 - **Issue:** #97 (epic #88, minimal voice loop)
 
@@ -159,3 +159,27 @@ calls need headphones until echo cancellation is checked.
   next latency improvement (greedy decoding first), not a blocker.
 - A barge-in after the output runs dry between two clauses is not flagged as
   an interruption, because the turn has already ended there.
+
+## Amendment (2026-11-28): greedy decoding by default
+
+**Decision.** `PARLORA_STT__BEAM_SIZE` defaults to 1 (greedy decoding) instead
+of 5. Speech-to-text is the largest share of a turn (0.24–0.76 s in the
+5-minute call), and greedy decoding is the cheapest cut available:
+
+- In the speech-to-text benchmark it lowered p50 from 0.45 s to 0.37 s and p95
+  from 0.53 s to 0.41 s, 70–130 ms per fixture, with the same transcript for
+  all 12 fixtures and the same VRAM.
+- In the in-process call benchmark (runs 4 and 5 above) speech-to-text went from
+  a median of about 0.64 s to 0.49–0.55 s and the Smart Turn p50 from
+  1.19–1.21 s to 1.13–1.14 s.
+- The maintainer's 5-minute call of 2026-11-27 already ran with beam 1; the
+  transcripts of real, non-native speech were good enough that no turn was
+  misunderstood. This is one speaker and a qualitative judgement, not a
+  measured word error rate.
+
+**Consequences.** A wider beam can still help noisier or more strongly
+accented speech; it stays a setting (1–10). If transcription errors show up
+with other learners, measure beam 1 against beam 5 on real speech before
+changing the default back. The benchmark scripts keep beam 5 as their
+baseline (ADR 0002), so earlier results stay comparable; `--beam-size 1`
+measures the default.
