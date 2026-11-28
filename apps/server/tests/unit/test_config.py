@@ -185,3 +185,49 @@ def test_invalid_turn_detection_settings_fail_fast(
 
     with pytest.raises(SettingsError, match=name):
         load_settings(env_file=None)
+
+
+def test_ice_is_left_to_aiortc_by_default(clean_env: None) -> None:
+    voice = Settings(_env_file=None).voice
+
+    assert voice.ice_host is None, "the default stack publishes no UDP port (ADR 0003)"
+    assert (voice.ice_port_min, voice.ice_port_max) == (40000, 40019)
+
+
+def test_ice_host_and_range_from_the_environment(
+    monkeypatch: pytest.MonkeyPatch, clean_env: None
+) -> None:
+    monkeypatch.setenv("PARLORA_VOICE__ICE_HOST", "192.0.2.10")
+    monkeypatch.setenv("PARLORA_VOICE__ICE_PORT_MIN", "41000")
+    monkeypatch.setenv("PARLORA_VOICE__ICE_PORT_MAX", "41004")
+
+    voice = Settings(_env_file=None).voice
+
+    assert voice.ice_host == "192.0.2.10"
+    assert voice.ice_ports == range(41000, 41005)
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("PARLORA_VOICE__ICE_HOST", "my-laptop.local"),
+        ("PARLORA_VOICE__ICE_HOST", "::1"),
+        ("PARLORA_VOICE__ICE_PORT_MIN", "80"),
+        ("PARLORA_VOICE__ICE_PORT_MAX", "70000"),
+    ],
+)
+def test_invalid_ice_settings_fail_fast(
+    monkeypatch: pytest.MonkeyPatch, clean_env: None, name: str, value: str
+) -> None:
+    monkeypatch.setenv(name, value)
+
+    with pytest.raises(SettingsError, match=name):
+        load_settings(env_file=None)
+
+
+def test_ice_range_must_not_be_reversed(monkeypatch: pytest.MonkeyPatch, clean_env: None) -> None:
+    monkeypatch.setenv("PARLORA_VOICE__ICE_PORT_MIN", "40010")
+    monkeypatch.setenv("PARLORA_VOICE__ICE_PORT_MAX", "40000")
+
+    with pytest.raises(SettingsError, match="PARLORA_VOICE__ICE_PORT_MAX"):
+        load_settings(env_file=None)

@@ -153,3 +153,61 @@ def test_turn_latency_is_sent_to_the_client_as_a_server_message() -> None:
             "interrupted": False,
         }
     ]
+
+
+def _free_udp_range(size: int) -> range:
+    import socket
+
+    for start in range(46000, 46900, size + 1):
+        ports = range(start, start + size)
+        held = []
+        try:
+            for port in ports:
+                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                held.append(s)
+                s.bind(("127.0.0.1", port))  # probing on loopback, closed at once
+        except OSError:
+            continue
+        finally:
+            for s in held:
+                s.close()
+        return ports
+    pytest.skip("no free UDP port range on this machine")
+
+
+@pytest.mark.slow
+def test_with_an_ice_host_the_answer_advertises_it_inside_the_range(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import aioice.ice
+
+    monkeypatch.setattr(aioice.ice, "asyncio", vars(aioice.ice)["asyncio"])  # restored afterwards
+    ports = _free_udp_range(8)
+    settings = Settings(
+        _env_file=None,
+        voice={"ice_host": "192.0.2.10", "ice_port_min": ports[0], "ice_port_max": ports[-1]},
+    )
+    starter = WebRTCCallStarter(fake_runtime(), settings)
+    ended = asyncio.Event()
+
+    async def scenario() -> SdpDescription:
+        peer, offer = await browser_offer()
+        try:
+            call, answer = await starter(
+                offer, SESSION, CallHooks(activity=lambda: None, ended=ended.set)
+            )
+            await call.close()
+            await asyncio.wait_for(ended.wait(), timeout=10)
+        finally:
+            await peer.close()
+        return answer
+
+    answer = asyncio.run(scenario())
+
+    hosts = [
+        line.split()[4:6]
+        for line in answer.sdp.splitlines()
+        if line.startswith("a=candidate:") and " typ host" in line and " udp " in line.lower()
+    ]
+    assert hosts, "the answer carries host candidates"
+    assert all(address == "192.0.2.10" and int(port) in ports for address, port in hosts)

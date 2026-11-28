@@ -16,14 +16,14 @@ setup:
     pnpm --filter @parlora/web exec playwright install chromium
     uv run pre-commit install --install-hooks
 
-# Start the stack with the server reloading on code changes; `just dev nogpu` without an NVIDIA GPU
-dev mode="gpu":
+# Start the stack with the server reloading on code changes; `just dev nogpu` without an NVIDIA GPU, `just dev gpu lan` to publish the ICE range (compose.ice.yaml)
+dev mode="gpu" network="local":
     @echo 'dev: server on http://127.0.0.1:8700 (reloads on change); run the dev client with `pnpm --dir apps/web dev` in a second terminal.'
-    docker compose -f compose.yaml -f compose.dev.yaml {{ if mode == "nogpu" { "-f compose.nogpu.yaml" } else if mode == "gpu" { "" } else { error("mode must be gpu or nogpu") } }} up --build
+    docker compose -f compose.yaml -f compose.dev.yaml {{ if mode == "nogpu" { "-f compose.nogpu.yaml" } else if mode == "gpu" { "" } else { error("mode must be gpu or nogpu") } }} {{ if network == "lan" { "-f compose.ice.yaml" } else if network == "local" { "" } else { error("network must be local or lan") } }} up --build
 
-# Start the Compose stack (PostgreSQL + server) and wait until healthy; `just up nogpu` without an NVIDIA GPU
-up mode="gpu":
-    docker compose -f compose.yaml {{ if mode == "nogpu" { "-f compose.nogpu.yaml" } else if mode == "gpu" { "" } else { error("mode must be gpu or nogpu") } }} up --detach --build --wait
+# Start the Compose stack (PostgreSQL + server) and wait until healthy; `just up nogpu` without an NVIDIA GPU, `just up gpu lan` to publish the ICE range (compose.ice.yaml)
+up mode="gpu" network="local":
+    docker compose -f compose.yaml {{ if mode == "nogpu" { "-f compose.nogpu.yaml" } else if mode == "gpu" { "" } else { error("mode must be gpu or nogpu") } }} {{ if network == "lan" { "-f compose.ice.yaml" } else if network == "local" { "" } else { error("network must be local or lan") } }} up --detach --build --wait
 
 # Stop the Compose stack (data volumes are kept)
 down:

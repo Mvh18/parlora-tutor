@@ -1,6 +1,6 @@
 # ADR 0003 — WebRTC transport from Docker
 
-- **Status:** Accepted
+- **Status:** Accepted, amended 2026-11-15 (see [Amendment](#amendment-2026-11-15))
 - **Date:** 2026-10-17
 - **Issue:** #4 (spike, time-boxed to 1–2 days)
 
@@ -185,3 +185,42 @@ fallback is not needed.
   adds a service and credentials for a problem the bridge setup already
   solves on the desktop. Kept in reserve for Phase 4 if the fixed-range patch
   proves brittle.
+
+## Amendment (2026-11-15)
+
+**Finding 1 no longer held on the target machine.** With the Phase 1 voice
+loop running (Docker Desktop 4.42, Docker Engine 28.2), desktop calls did not
+connect: the server accepted the offer and the browser's candidates (real host
+addresses, since the microphone was granted first), the container's STUN
+checks got no answer, and the browser closed the call after about 14 s. Chrome
+and Playwright's Chromium behaved the same, and a firewall rule allowing all
+inbound traffic to Playwright's binary did not help.
+
+A direct probe isolated it: UDP sent from the container to the host's LAN
+address or its Hyper-V adapters never arrives, even at a socket bound to all
+interfaces; UDP sent to `host.docker.internal` arrives, but over loopback, which
+a socket bound to an interface address (as Chrome binds its candidates) never
+sees. The container-initiated path that finding 1 relied on is gone. What
+changed since the spike was not established.
+
+**Decision.** The fallback this ADR already measured — a fixed UDP range
+published on the host's LAN address, advertised as the ICE candidate — becomes
+an opt-in for desktop calls, ahead of Phase 4 (design D11 of `add-voice-loop`):
+
+- `PARLORA_VOICE__ICE_HOST` (unset by default) and
+  `PARLORA_VOICE__ICE_PORT_MIN`/`_MAX` (40000–40019).
+- When set, aioice's host sockets bind inside the range and the answer's host
+  candidates carry `ICE_HOST`. The patch swaps aioice's `asyncio` name for a
+  shim, so no other code in the process sees a changed event loop.
+- `compose.ice.yaml` publishes the range as UDP on `${PARLORA_VOICE__ICE_HOST}`
+  and refuses to render without it; `just up gpu lan` adds it.
+
+**Consequences.**
+
+- The default stack is unchanged and still publishes only the HTTP port on
+  `127.0.0.1`. The opt-in is the single documented exception to that rule.
+- With the opt-in, 20 UDP ports are reachable from the local network while the
+  stack runs. Each answers ICE only for a live call with credentials exchanged
+  over the loopback-only API, and calls are capped by `PARLORA_VOICE__MAX_CALLS`.
+- Phase 4 (phone on the LAN) builds on this rather than introducing it; it still
+  needs the firewall rule and HTTPS from finding 4.

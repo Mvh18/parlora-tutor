@@ -6,6 +6,7 @@ the application at startup with a message naming the variable, never its value.
 `.env.example` documents every variable; a repository test keeps it in sync.
 """
 
+import ipaddress
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
@@ -17,6 +18,7 @@ from pydantic import (
     HttpUrl,
     SecretStr,
     ValidationError,
+    ValidationInfo,
     field_validator,
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -83,6 +85,42 @@ class VoiceSettings(BaseModel):
         ge=10,
         description="A call where nobody speaks for this many seconds is ended.",
     )
+    ice_host: str | None = Field(
+        default=None,
+        description=(
+            "IPv4 address advertised in ICE host candidates, where compose.ice.yaml publishes "
+            "the UDP range (design D11); unset keeps the container's own address."
+        ),
+    )
+    ice_port_min: int = Field(
+        default=40000, ge=1024, le=65535, description="First UDP port of the ICE range."
+    )
+    ice_port_max: int = Field(
+        default=40019, ge=1024, le=65535, description="Last UDP port of the ICE range."
+    )
+
+    @field_validator("ice_host")
+    @classmethod
+    def _ipv4_address(cls, value: str | None) -> str | None:
+        if not value:  # empty in .env.example means unset
+            return None
+        try:
+            return str(ipaddress.IPv4Address(value))
+        except ValueError:
+            raise ValueError("must be an IPv4 address") from None
+
+    @field_validator("ice_port_max")
+    @classmethod
+    def _range_not_reversed(cls, value: int, info: ValidationInfo) -> int:
+        low = info.data.get("ice_port_min")
+        if low is not None and value < low:
+            raise ValueError("must not be below PARLORA_VOICE__ICE_PORT_MIN")
+        return value
+
+    @property
+    def ice_ports(self) -> range:
+        """The ICE UDP port range, both ends included."""
+        return range(self.ice_port_min, self.ice_port_max + 1)
 
 
 class VadSettings(BaseModel):

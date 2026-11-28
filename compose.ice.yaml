@@ -1,0 +1,18 @@
+# Opt-in: ICE through a published UDP range (design D11, amends ADR 0003).
+#
+# Use it only when calls never connect (they stay on "Connecting…" and end after
+# about 14 s): on some Docker Desktop setups the container cannot reach the
+# browser's ICE candidates. This file publishes the server's ICE ports on the
+# host's LAN address, and the server advertises that address in its answer, so
+# the browser starts the checks against a reachable port.
+#
+# - Set PARLORA_VOICE__ICE_HOST in `.env` to this machine's LAN IPv4 address;
+#   rendering fails without it. Start with `just up gpu lan`.
+# - The range is reachable from the local network while the stack runs. It is the
+#   only exception to the loopback rule (repository-security spec).
+# - Keep the range equal to PARLORA_VOICE__ICE_PORT_MIN/MAX (default 40000-40019).
+
+services:
+  server:
+    ports:
+      - "${PARLORA_VOICE__ICE_HOST:?set PARLORA_VOICE__ICE_HOST in .env to this machine's LAN IPv4 address}:40000-40019:40000-40019/udp"
