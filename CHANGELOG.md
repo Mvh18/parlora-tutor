@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.0](https://github.com/Mvh18/parlora-tutor/compare/v0.5.0...v0.6.0) (2026-11-28)
+
+
+### Features
+
+* **web:** add a call page and publish the ice range on a lan address ([#128](https://github.com/Mvh18/parlora-tutor/issues/128)) ([74aea83](https://github.com/Mvh18/parlora-tutor/commit/74aea83b387db1b88f8973f9bf43276facbfca6a))
+
+
+### Bug Fixes
+
+* **server:** turn off onnxruntime telemetry ([#131](https://github.com/Mvh18/parlora-tutor/issues/131)) ([95b5df6](https://github.com/Mvh18/parlora-tutor/commit/95b5df689355bb2b5a16f92696bccde205ea6070))
+
 ## [0.5.0](https://github.com/Mvh18/parlora-tutor/compare/v0.4.0...v0.5.0) (2026-11-27)
 
 
